@@ -1,0 +1,24 @@
+[package]
+name = "xretype"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+description = "A small typing automation helper for xremap on Wayland"
+license = "MIT"
+keywords = ["xremap", "wayland", "automation", "keyboard"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+anyhow = "1.0"
+arboard = { version = "3.6.1", features = ["wayland-data-control"] }
+clap = { version = "4.5", features = ["derive"] }
+dirs = "6.0"
+enigo = { version = "0.6.1", default-features = false, features = ["libei_smol"] }
+notify-rust = "4.18"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+[profile.release]
+lto = "thin"
+strip = true
