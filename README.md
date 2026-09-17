@@ -10,6 +10,7 @@ workflows, notifications, and native keyboard overlays.
 
 - Type or paste literal text and stdin through libei or ydotool.
 - Exclude sensitive paste values from compatible clipboard histories by default.
+- Clear xretype's temporary clipboard value after the target has had time to paste it.
 - Resolve nested scalar values from `~/.config/personal_info.json`.
 - Run typed, parameterized, composable YAML workflows.
 - Keep input sessions and workflow configuration alive in `xretyped`.

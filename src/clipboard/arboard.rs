@@ -93,7 +93,8 @@ pub fn paste_with<I: InputBackend + ?Sized>(
         }
     };
     input_result?;
-    clipboard_result
+    clipboard_result?;
+    clear_clipboard_if_matches(&expected_text)
 }
 
 fn wait_until_clipboard_matches(expected: &str, timeout: Duration) -> Result<()> {
@@ -103,6 +104,23 @@ fn wait_until_clipboard_matches(expected: &str, timeout: Duration) -> Result<()>
             .get_text()
             .context("could not read clipboard while waiting for the new offer")
     })
+}
+
+fn clear_clipboard_if_matches(expected: &str) -> Result<()> {
+    let mut clipboard = Clipboard::new().context("could not open clipboard for cleanup")?;
+    let actual = clipboard.get_text().ok();
+
+    if clipboard_still_contains(expected, actual.as_deref()) {
+        clipboard
+            .clear()
+            .context("could not clear clipboard after paste")?;
+    }
+
+    Ok(())
+}
+
+fn clipboard_still_contains(expected: &str, actual: Option<&str>) -> bool {
+    actual == Some(expected)
 }
 
 fn wait_until_matches<F>(expected: &str, timeout: Duration, mut read: F) -> Result<()>
@@ -133,7 +151,7 @@ mod tests {
 
     use anyhow::anyhow;
 
-    use super::wait_until_matches;
+    use super::{clipboard_still_contains, wait_until_matches};
 
     #[test]
     fn waits_past_old_clipboard_contents() {
@@ -157,5 +175,12 @@ mod tests {
             .unwrap_err();
 
         assert!(error.to_string().contains("did not become readable"));
+    }
+
+    #[test]
+    fn cleanup_only_clears_the_value_that_xretype_offered() {
+        assert!(clipboard_still_contains("temporary", Some("temporary")));
+        assert!(!clipboard_still_contains("temporary", Some("new copy")));
+        assert!(!clipboard_still_contains("temporary", None));
     }
 }
