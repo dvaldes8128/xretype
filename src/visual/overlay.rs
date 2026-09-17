@@ -241,8 +241,6 @@ fn build_window(application: &Application, layout: &Layout) {
     window.set_namespace(Some("xretype-overlay"));
     window.set_layer(Layer::Top);
     window.set_anchor(Edge::Top, true);
-    window.set_anchor(Edge::Left, true);
-    window.set_anchor(Edge::Right, true);
     window.set_margin(Edge::Top, 6);
     window.set_exclusive_zone(0);
     window.set_keyboard_mode(KeyboardMode::None);

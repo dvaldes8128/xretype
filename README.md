@@ -191,6 +191,9 @@ isolates GTK from the daemon; only that child is stopped on hide or replacement.
 - Use `journalctl --user -u xretyped.service` for service failures,
   `xretype validate` for YAML problems, and `xretype --standalone ...` to
   distinguish daemon/IPC issues from input backend issues.
+- At login, `xretyped` discovers the compositor socket under
+  `$XDG_RUNTIME_DIR` when the desktop has not yet imported `WAYLAND_DISPLAY`
+  into the systemd user manager.
 
 The version-1 language intentionally omits branches, loops, retries, parallel
 execution, string interpolation, and arbitrary shell commands. Those belong in
