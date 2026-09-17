@@ -10,7 +10,7 @@ use serde::Deserialize;
 use crate::{
     actions::{Action, Runtime},
     clipboard::Sensitivity,
-    visual::{Notification, OverlayOperation, OverlayRequest},
+    visual::{Notification, OverlayOperation, OverlayRequest, OverlayView},
 };
 
 #[derive(Debug, Clone, Deserialize)]
@@ -488,6 +488,7 @@ fn resolve_action(spec: &ActionSpec, parameters: &BTreeMap<String, ScalarValue>)
         ActionSpec::Paste { text, public } => Ok(Action::Paste {
             text: resolve_string(text, parameters)?,
             sensitivity: Sensitivity::from_public(resolve_bool(public, parameters)?),
+            overlay_reset: None,
         }),
         ActionSpec::Info {
             path,
@@ -539,6 +540,7 @@ fn resolve_action(spec: &ActionSpec, parameters: &BTreeMap<String, ScalarValue>)
                 .as_ref()
                 .map(|name| resolve_string(name, parameters))
                 .transpose()?,
+            view: OverlayView::Base,
         })),
         ActionSpec::Run { .. } => {
             bail!("nested run action must be handled by the workflow runtime")

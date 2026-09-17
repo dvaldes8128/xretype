@@ -14,6 +14,7 @@ pub struct Layout {
     pub name: String,
     pub selector: String,
     pub mode: String,
+    pub prefix: String,
     pub entries: Vec<LayoutEntry>,
     pub columns: usize,
 }
@@ -34,6 +35,8 @@ struct RawLayout {
     selector: String,
     #[serde(default)]
     mode: Option<String>,
+    #[serde(default = "default_prefix")]
+    prefix: String,
     entries: Vec<LayoutEntry>,
     #[serde(default = "default_columns")]
     columns: usize,
@@ -41,6 +44,10 @@ struct RawLayout {
 
 fn default_columns() -> usize {
     3
+}
+
+fn default_prefix() -> String {
+    "Space".to_owned()
 }
 
 impl Layout {
@@ -73,13 +80,46 @@ impl Layout {
         if mode.trim().is_empty() || mode == "layouts" {
             bail!("{}: invalid or reserved mode '{mode}'", path.display());
         }
+        if raw.prefix.trim().is_empty() || raw.prefix.contains('-') {
+            bail!("{}: prefix must be one non-combination key", path.display());
+        }
         let mut keys = BTreeSet::new();
+        let mut prefix_targets = BTreeSet::new();
         for (index, entry) in raw.entries.iter().enumerate() {
             if entry.key.is_empty() {
                 bail!("{}: entry {} has an empty key", path.display(), index + 1);
             }
             if !keys.insert(entry.key.clone()) {
                 bail!("{}: duplicate entry key '{}'", path.display(), entry.key);
+            }
+            if entry.key == raw.prefix {
+                bail!(
+                    "{}: entry key '{}' is reserved as the layout prefix",
+                    path.display(),
+                    raw.prefix
+                );
+            }
+            if entry.key.starts_with(&format!("{}-", raw.prefix))
+                && entry.key.len() == raw.prefix.len() + 1
+            {
+                bail!("{}: prefix entry has no target key", path.display());
+            }
+            if let Some(target) = entry.key.strip_prefix(&format!("{}-", raw.prefix)) {
+                if target == raw.prefix {
+                    bail!(
+                        "{}: '{}-{}' is reserved for a literal prefix key",
+                        path.display(),
+                        raw.prefix,
+                        raw.prefix
+                    );
+                }
+                if !prefix_targets.insert(target.to_owned()) {
+                    bail!(
+                        "{}: duplicate prefix target key '{}'",
+                        path.display(),
+                        target
+                    );
+                }
             }
         }
         Ok(Self {
@@ -88,6 +128,7 @@ impl Layout {
             name: raw.name,
             selector: raw.selector,
             mode,
+            prefix: raw.prefix,
             entries: raw.entries,
             columns: raw.columns,
         })
@@ -96,23 +137,27 @@ impl Layout {
     pub fn substitutions(&self) -> BTreeMap<String, KeySubstitution> {
         let mut groups = BTreeMap::new();
         for entry in &self.entries {
-            let (group, shifted) = entry_group(&entry.key);
+            let (group, prefixed) = entry_group(&entry.key, &self.prefix);
             let substitution = groups.entry(group).or_insert_with(KeySubstitution::default);
             let symbol = display_symbol(&entry.symbol);
-            if shifted {
-                substitution.shift = symbol;
+            if prefixed {
+                substitution.prefix = symbol;
             } else {
                 substitution.base = symbol;
             }
         }
         groups
     }
+
+    pub fn prefix_target<'a>(&self, key: &'a str) -> Option<&'a str> {
+        key.strip_prefix(&format!("{}-", self.prefix))
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct KeySubstitution {
     pub base: String,
-    pub shift: String,
+    pub prefix: String,
 }
 
 pub fn load_layouts(root: &Path) -> Result<Vec<Layout>> {
@@ -188,8 +233,8 @@ pub fn slug(value: &str) -> String {
     }
 }
 
-fn entry_group(key: &str) -> (String, bool) {
-    if let Some(rest) = key.strip_prefix("Shift-") {
+fn entry_group(key: &str, prefix: &str) -> (String, bool) {
+    if let Some(rest) = key.strip_prefix(&format!("{prefix}-")) {
         let group = if rest.chars().count() == 1
             && rest
                 .chars()
@@ -219,13 +264,14 @@ mod tests {
     use super::{Layout, LayoutEntry};
 
     #[test]
-    fn merges_base_and_shift_substitutions() {
+    fn merges_base_and_prefix_substitutions() {
         let layout = Layout {
             path: "math.yml".into(),
             id: "math".to_owned(),
             name: "Math".to_owned(),
             selector: "M".to_owned(),
             mode: "math_layer".to_owned(),
+            prefix: "Space".to_owned(),
             entries: vec![
                 LayoutEntry {
                     key: "a".to_owned(),
@@ -233,7 +279,7 @@ mod tests {
                     label: None,
                 },
                 LayoutEntry {
-                    key: "Shift-a".to_owned(),
+                    key: "Space-a".to_owned(),
                     symbol: "Α".to_owned(),
                     label: None,
                 },
@@ -242,6 +288,6 @@ mod tests {
         };
         let substitutions = layout.substitutions();
         assert_eq!(substitutions["a"].base, "α");
-        assert_eq!(substitutions["a"].shift, "Α");
+        assert_eq!(substitutions["a"].prefix, "Α");
     }
 }

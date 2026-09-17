@@ -30,7 +30,18 @@ impl Runtime {
     pub fn execute(&mut self, action: Action) -> Result<()> {
         match action {
             Action::Type(text) => self.input()?.type_text(&text),
-            Action::Paste { text, sensitivity } => {
+            Action::Paste {
+                text,
+                sensitivity,
+                overlay_reset,
+            } => {
+                if let Some(name) = overlay_reset {
+                    self.visual.overlay(&crate::visual::OverlayRequest {
+                        operation: crate::visual::OverlayOperation::Show,
+                        name: Some(name),
+                        view: crate::visual::OverlayView::Base,
+                    })?;
+                }
                 let delay = Duration::from_millis(self.config.input.paste_delay_ms);
                 let serve_for = Duration::from_millis(self.config.input.clipboard_serve_ms);
                 clipboard::paste_with(self.input()?, text, sensitivity, delay, serve_for)

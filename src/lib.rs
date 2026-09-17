@@ -17,7 +17,7 @@ use crate::{
     cli::{Cli, Command, DaemonCommand, OverlayCommand, XremapCommand, XremapSection},
     clipboard::Sensitivity,
     config::Config,
-    visual::{Notification, OverlayOperation, OverlayRequest},
+    visual::{Notification, OverlayOperation, OverlayRequest, OverlayView},
 };
 
 pub fn run(cli: Cli) -> Result<()> {
@@ -104,7 +104,13 @@ fn dispatch(command: Command, standalone: bool, config: Config) -> Result<()> {
                 }
             }
         }
-        Command::OverlayHost(args) => visual::run_overlay_host(&args.layout),
+        Command::OverlayHost(args) => visual::run_overlay_host(
+            &args.layout,
+            match args.view {
+                cli::OverlayViewArg::Base => OverlayView::Base,
+                cli::OverlayViewArg::Prefix => OverlayView::Prefix,
+            },
+        ),
         command => {
             let action = command_to_action(command)?;
             if standalone {
@@ -143,6 +149,7 @@ fn command_to_action(command: Command) -> Result<Action> {
         Command::Paste(args) => Ok(Action::Paste {
             text: args.value.resolve()?,
             sensitivity: Sensitivity::from_public(args.public),
+            overlay_reset: args.overlay_reset,
         }),
         Command::Info(args) => {
             let path = sources::json::normalize_path(&args.path)?;
@@ -163,17 +170,23 @@ fn command_to_action(command: Command) -> Result<Action> {
         })),
         Command::Overlay(args) => {
             let request = match args.command {
-                OverlayCommand::Show { name } => OverlayRequest {
+                OverlayCommand::Show { name, view } => OverlayRequest {
                     operation: OverlayOperation::Show,
                     name: Some(name),
+                    view: match view {
+                        cli::OverlayViewArg::Base => OverlayView::Base,
+                        cli::OverlayViewArg::Prefix => OverlayView::Prefix,
+                    },
                 },
                 OverlayCommand::Hide { name } => OverlayRequest {
                     operation: OverlayOperation::Hide,
                     name,
+                    view: OverlayView::Base,
                 },
                 OverlayCommand::Toggle { name } => OverlayRequest {
                     operation: OverlayOperation::Toggle,
                     name: Some(name),
+                    view: OverlayView::Base,
                 },
             };
             Ok(Action::Overlay(request))

@@ -146,6 +146,9 @@ pub enum XremapSection {
 #[derive(Debug, Args)]
 pub struct OverlayHostArgs {
     pub layout: PathBuf,
+
+    #[arg(long, value_enum, default_value_t = OverlayViewArg::Base)]
+    pub view: OverlayViewArg,
 }
 
 #[derive(Debug, Args)]
@@ -162,6 +165,10 @@ pub struct PasteArgs {
     /// Allow the value to be retained in normal clipboard history.
     #[arg(long)]
     pub public: bool,
+
+    /// Return this layout overlay to its base view before pasting.
+    #[arg(long, value_name = "LAYOUT")]
+    pub overlay_reset: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -243,16 +250,32 @@ pub struct OverlayArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum OverlayCommand {
-    Show { name: String },
-    Hide { name: Option<String> },
-    Toggle { name: String },
+    Show {
+        name: String,
+
+        #[arg(long, value_enum, default_value_t = OverlayViewArg::Base)]
+        view: OverlayViewArg,
+    },
+    Hide {
+        name: Option<String>,
+    },
+    Toggle {
+        name: String,
+    },
+}
+
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+pub enum OverlayViewArg {
+    #[default]
+    Base,
+    Prefix,
 }
 
 #[cfg(test)]
 mod tests {
     use clap::Parser;
 
-    use super::{Cli, Command};
+    use super::{Cli, Command, OverlayCommand, OverlayViewArg};
 
     #[test]
     fn clap_definition_is_valid() {
@@ -273,6 +296,30 @@ mod tests {
             panic!("expected paste command");
         };
         assert!(args.public);
+    }
+
+    #[test]
+    fn paste_can_reset_a_layout_overlay() {
+        let cli =
+            Cli::try_parse_from(["xretype", "paste", "--overlay-reset", "logic", "∀"]).unwrap();
+        let Command::Paste(args) = cli.command else {
+            panic!("expected paste command");
+        };
+        assert_eq!(args.overlay_reset.as_deref(), Some("logic"));
+    }
+
+    #[test]
+    fn overlay_show_accepts_the_prefix_view() {
+        let cli = Cli::try_parse_from(["xretype", "overlay", "show", "logic", "--view", "prefix"])
+            .unwrap();
+        let Command::Overlay(args) = cli.command else {
+            panic!("expected overlay command");
+        };
+        let OverlayCommand::Show { name, view } = args.command else {
+            panic!("expected overlay show command");
+        };
+        assert_eq!(name, "logic");
+        assert!(matches!(view, OverlayViewArg::Prefix));
     }
 
     #[test]

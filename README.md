@@ -16,6 +16,8 @@ workflows, notifications, and native keyboard overlays.
 - Render non-focusable GTK4 layer-shell layout overlays on Wayland.
 - Generate the personal-information and layout blocks in xremap `config.yml`.
 - Validate, preview, and check generated configuration before writing it.
+- Use a visible one-shot Space prefix for alternate layout symbols; pressing
+  Space twice inserts a literal space and `Alt+Space` remains available.
 
 ## Requirements and installation
 
@@ -174,9 +176,11 @@ one-shot hotkeys. Clipboard ownership remains inside xretype for both backends.
 
 The overlay uses GTK4 layer-shell on the top layer, does not reserve screen
 space, requests no keyboard interactivity, and installs an empty pointer input
-region. It displays a full ANSI keyboard with base/Shift substitutions merged
-from the same typed layout model used by generation. A supervised child process
-isolates GTK from the daemon; only that child is stopped on hide or replacement.
+region. It displays a full ANSI keyboard with base/prefix substitutions merged
+from the same typed layout model used by generation. When Space arms an
+alternate-symbol prefix, the overlay highlights Space and the available
+alternates until selection or cancellation. A supervised child process isolates
+GTK from the daemon; only that child is stopped on hide or replacement.
 
 ## Security and troubleshooting
 

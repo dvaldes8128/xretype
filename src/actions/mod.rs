@@ -17,6 +17,7 @@ pub enum Action {
     Paste {
         text: String,
         sensitivity: Sensitivity,
+        overlay_reset: Option<String>,
     },
     Info {
         file: Option<PathBuf>,

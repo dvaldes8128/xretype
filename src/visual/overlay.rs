@@ -23,16 +23,37 @@ pub enum OverlayOperation {
     Toggle,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum OverlayView {
+    #[default]
+    Base,
+    Prefix,
+}
+
+impl OverlayView {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Base => "base",
+            Self::Prefix => "prefix",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OverlayRequest {
     pub operation: OverlayOperation,
     pub name: Option<String>,
+    #[serde(default)]
+    pub view: OverlayView,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct OverlayState {
     pid: u32,
     name: String,
+    #[serde(default)]
+    view: OverlayView,
     executable: PathBuf,
 }
 
@@ -40,6 +61,7 @@ struct OverlayState {
 struct OverlaySupervisor {
     child: Option<Child>,
     name: Option<String>,
+    view: OverlayView,
 }
 
 static SUPERVISOR: OnceLock<Mutex<OverlaySupervisor>> = OnceLock::new();
@@ -56,7 +78,7 @@ pub fn handle(root: &Path, request: &OverlayRequest) -> Result<()> {
                 .name
                 .as_deref()
                 .context("overlay show requires a layout name")?;
-            supervisor.show(root, name)
+            supervisor.show(root, name, request.view)
         }
         OverlayOperation::Hide => supervisor.hide(),
         OverlayOperation::Toggle => {
@@ -67,7 +89,7 @@ pub fn handle(root: &Path, request: &OverlayRequest) -> Result<()> {
             if supervisor.name.as_deref() == Some(name) {
                 supervisor.hide()
             } else {
-                supervisor.show(root, name)
+                supervisor.show(root, name, request.view)
             }
         }
     }
@@ -77,13 +99,12 @@ pub fn active_name() -> Option<String> {
     let supervisor = SUPERVISOR.get_or_init(|| Mutex::new(OverlaySupervisor::default()));
     let mut supervisor = supervisor.lock().ok()?;
     supervisor.refresh();
-    supervisor.name.clone().or_else(read_live_state_name)
+    supervisor.active_label().or_else(read_live_state_name)
 }
 
 impl OverlaySupervisor {
-    fn show(&mut self, root: &Path, name: &str) -> Result<()> {
+    fn show(&mut self, root: &Path, name: &str, view: OverlayView) -> Result<()> {
         validate_layout_name(name)?;
-        self.hide()?;
         let path = root.join("layouts").join(format!("{name}.yml"));
         let path = if path.exists() {
             path
@@ -92,9 +113,15 @@ impl OverlaySupervisor {
         };
         Layout::load(&path)?;
         let executable = overlay_executable()?;
+        if self.update_existing_view(name, view, &executable)? {
+            return Ok(());
+        }
+
+        self.hide()?;
         let child = Command::new(&executable)
             .arg("overlay-host")
             .arg(&path)
+            .args(["--view", view.as_str()])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::inherit())
@@ -103,11 +130,45 @@ impl OverlaySupervisor {
         write_state(&OverlayState {
             pid: child.id(),
             name: name.to_owned(),
+            view,
             executable,
         })?;
         self.name = Some(name.to_owned());
+        self.view = view;
         self.child = Some(child);
         Ok(())
+    }
+
+    fn update_existing_view(
+        &mut self,
+        name: &str,
+        view: OverlayView,
+        executable: &Path,
+    ) -> Result<bool> {
+        let pid = if self.name.as_deref() == Some(name) {
+            self.child.as_ref().map(Child::id)
+        } else {
+            None
+        };
+        let pid = pid.or_else(|| {
+            read_state()
+                .filter(|state| state.name == name && process_matches(state))
+                .map(|state| state.pid)
+        });
+        let Some(pid) = pid else {
+            return Ok(false);
+        };
+
+        send_view_signal(pid, view)?;
+        write_state(&OverlayState {
+            pid,
+            name: name.to_owned(),
+            view,
+            executable: executable.to_path_buf(),
+        })?;
+        self.name = Some(name.to_owned());
+        self.view = view;
+        Ok(true)
     }
 
     fn hide(&mut self) -> Result<()> {
@@ -120,6 +181,7 @@ impl OverlaySupervisor {
             let _ = unsafe { libc::kill(state.pid as i32, libc::SIGTERM) };
         }
         self.name = None;
+        self.view = OverlayView::Base;
         let _ = fs::remove_file(state_path());
         Ok(())
     }
@@ -132,8 +194,15 @@ impl OverlaySupervisor {
         {
             self.child = None;
             self.name = None;
+            self.view = OverlayView::Base;
             let _ = fs::remove_file(state_path());
         }
+    }
+
+    fn active_label(&self) -> Option<String> {
+        self.name
+            .as_ref()
+            .map(|name| overlay_label(name, self.view))
     }
 }
 
@@ -184,10 +253,33 @@ fn read_state() -> Option<OverlayState> {
 fn read_live_state_name() -> Option<String> {
     let state = read_state()?;
     if process_matches(&state) {
-        Some(state.name)
+        Some(overlay_label(&state.name, state.view))
     } else {
         let _ = fs::remove_file(state_path());
         None
+    }
+}
+
+fn overlay_label(name: &str, view: OverlayView) -> String {
+    match view {
+        OverlayView::Base => name.to_owned(),
+        OverlayView::Prefix => format!("{name} (Space prefix)"),
+    }
+}
+
+fn view_signal(view: OverlayView) -> i32 {
+    match view {
+        OverlayView::Base => libc::SIGUSR2,
+        OverlayView::Prefix => libc::SIGUSR1,
+    }
+}
+
+fn send_view_signal(pid: u32, view: OverlayView) -> Result<()> {
+    let result = unsafe { libc::kill(pid as i32, view_signal(view)) };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error()).context("could not update overlay view")
     }
 }
 
@@ -207,14 +299,14 @@ impl Drop for HostStateGuard {
     }
 }
 
-pub fn run_host(layout_path: &Path) -> Result<()> {
+pub fn run_host(layout_path: &Path, view: OverlayView) -> Result<()> {
     let layout = Layout::load(layout_path)?;
     let _state_guard = HostStateGuard(std::process::id());
     let application = Application::new(
         Some("io.xretype.overlay"),
         gio::ApplicationFlags::NON_UNIQUE,
     );
-    application.connect_activate(move |application| build_window(application, &layout));
+    application.connect_activate(move |application| build_window(application, &layout, view));
     let app_for_term = application.clone();
     glib::source::unix_signal_add_local(libc::SIGTERM, move || {
         app_for_term.quit();
@@ -229,7 +321,7 @@ pub fn run_host(layout_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn build_window(application: &Application, layout: &Layout) {
+fn build_window(application: &Application, layout: &Layout, view: OverlayView) {
     install_css();
     let window = ApplicationWindow::builder()
         .application(application)
@@ -252,23 +344,48 @@ fn build_window(application: &Application, layout: &Layout) {
     });
 
     let center = CenterBox::new();
-    center.set_center_widget(Some(&keyboard_card(layout)));
+    center.set_center_widget(Some(&keyboard_card(layout, view)));
     window.set_child(Some(&center));
+
+    let prefix_center = center.clone();
+    let prefix_layout = layout.clone();
+    glib::source::unix_signal_add_local(libc::SIGUSR1, move || {
+        prefix_center.set_center_widget(Some(&keyboard_card(&prefix_layout, OverlayView::Prefix)));
+        glib::ControlFlow::Continue
+    });
+    let base_center = center.clone();
+    let base_layout = layout.clone();
+    glib::source::unix_signal_add_local(libc::SIGUSR2, move || {
+        base_center.set_center_widget(Some(&keyboard_card(&base_layout, OverlayView::Base)));
+        glib::ControlFlow::Continue
+    });
     window.present();
 }
 
-fn keyboard_card(layout: &Layout) -> GtkBox {
+fn keyboard_card(layout: &Layout, view: OverlayView) -> GtkBox {
     let card = GtkBox::new(Orientation::Vertical, 6);
     card.add_css_class("keyboard-card");
     card.set_size_request(1120, -1);
 
-    let title = Label::new(Some(&layout.name));
+    let title_text = match view {
+        OverlayView::Base => layout.name.clone(),
+        OverlayView::Prefix => format!("{} · {} prefix", layout.name, layout.prefix),
+    };
+    let title = Label::new(Some(&title_text));
     title.set_halign(Align::Start);
     title.add_css_class("overlay-title");
     card.append(&title);
-    let hint = Label::new(Some(
-        "Esc: exit  ·  gold = substituted symbol  ·  dim keys = modifiers",
-    ));
+    let hint_text = match view {
+        OverlayView::Base => format!(
+            "{}: alternate prefix  ·  Esc: exit  ·  gold = substituted symbol",
+            layout.prefix
+        ),
+        OverlayView::Prefix => format!(
+            "{} armed  ·  press a gold symbol  ·  {} {} = literal space  ·  Esc: cancel",
+            layout.prefix, layout.prefix, layout.prefix
+        ),
+    };
+    let hint = Label::new(Some(&hint_text));
     hint.set_halign(Align::Start);
     hint.add_css_class("overlay-hint");
     card.append(&hint);
@@ -279,7 +396,7 @@ fn keyboard_card(layout: &Layout) -> GtkBox {
         row.set_homogeneous(false);
         for spec in row_specs {
             let substitution = spec.gid.and_then(|group| substitutions.get(group));
-            row.append(&keyboard_key(&spec, substitution));
+            row.append(&keyboard_key(&spec, substitution, &layout.prefix, view));
         }
         card.append(&row);
     }
@@ -303,19 +420,36 @@ struct KeySpec {
     width: i32,
 }
 
-fn keyboard_key(spec: &KeySpec, substitution: Option<&crate::xremap::KeySubstitution>) -> Frame {
+fn keyboard_key(
+    spec: &KeySpec,
+    substitution: Option<&crate::xremap::KeySubstitution>,
+    prefix_key: &str,
+    view: OverlayView,
+) -> Frame {
     let frame = Frame::new(None);
     frame.add_css_class(if matches!(spec.kind, KeyKind::Mod | KeyKind::Space) {
         "key-mod"
     } else {
         "key-standard"
     });
+    let is_prefix_key = spec.gid == Some(prefix_key);
+    if view == OverlayView::Prefix && is_prefix_key {
+        frame.add_css_class("prefix-key-active");
+    }
+    if view == OverlayView::Prefix
+        && !is_prefix_key
+        && substitution.is_none_or(|value| value.prefix.is_empty())
+    {
+        frame.add_css_class("prefix-unavailable");
+    }
     frame.set_size_request(spec.width, 48);
     frame.set_hexpand(matches!(spec.kind, KeyKind::Space));
     let contents = GtkBox::new(Orientation::Vertical, 0);
     contents.set_valign(Align::Center);
     let base = substitution.map(|value| value.base.as_str()).unwrap_or("");
-    let shift = substitution.map(|value| value.shift.as_str()).unwrap_or("");
+    let prefix = substitution
+        .map(|value| value.prefix.as_str())
+        .unwrap_or("");
     match spec.kind {
         KeyKind::Mod => {
             let label = Label::new(Some(spec.bottom));
@@ -325,28 +459,36 @@ fn keyboard_key(spec: &KeySpec, substitution: Option<&crate::xremap::KeySubstitu
         KeyKind::Space => {
             let label = Label::new(Some(if !base.is_empty() {
                 base
-            } else if !shift.is_empty() {
-                shift
+            } else if !prefix.is_empty() {
+                prefix
+            } else if is_prefix_key {
+                prefix_key
             } else {
                 " "
             }));
-            if !base.is_empty() || !shift.is_empty() {
+            if !base.is_empty() || !prefix.is_empty() || is_prefix_key {
                 label.add_css_class("substitution");
             }
             contents.append(&label);
         }
         KeyKind::Alpha | KeyKind::Dual => {
-            let top_text = if !shift.is_empty() { shift } else { spec.top };
+            let top_text = if !prefix.is_empty() { prefix } else { spec.top };
             let bottom_text = if !base.is_empty() { base } else { spec.bottom };
             let top = Label::new(Some(top_text));
             top.add_css_class("key-top");
-            if !shift.is_empty() {
+            if !prefix.is_empty() {
                 top.add_css_class("substitution");
+                if view == OverlayView::Prefix {
+                    top.add_css_class("prefix-symbol-active");
+                }
             }
             let bottom = Label::new(Some(bottom_text));
             bottom.add_css_class("key-bottom");
             if !base.is_empty() {
                 bottom.add_css_class("substitution");
+                if view == OverlayView::Prefix {
+                    bottom.add_css_class("prefix-symbol-inactive");
+                }
             }
             contents.append(&top);
             contents.append(&bottom);
@@ -486,12 +628,19 @@ fn install_css() {
         }
         .key-standard { background: rgba(40, 40, 58, 0.82); }
         .key-mod { background: rgba(55, 55, 72, 0.88); }
+        .prefix-key-active {
+            background: rgba(126, 91, 22, 0.94);
+            border-color: rgba(255, 212, 121, 0.95);
+        }
+        .prefix-unavailable { opacity: 0.42; }
         .overlay-title { color: white; font-size: 17px; font-weight: 600; }
         .overlay-hint { color: #a0a0b0; font-size: 11px; }
         .key-top { color: #c8c8d8; font-size: 12px; }
         .key-bottom { color: #eaeaea; font-size: 16px; font-weight: 700; }
         .key-mod-label { color: #c8c8d8; font-size: 11px; font-weight: 600; }
         .substitution { color: #ffd479; font-weight: 700; }
+        .prefix-symbol-active { color: #fff0b8; font-size: 17px; }
+        .prefix-symbol-inactive { color: #777785; }
         "#,
     );
     if let Some(display) = gdk::Display::default() {
@@ -505,12 +654,26 @@ fn install_css() {
 
 #[cfg(test)]
 mod tests {
-    use super::validate_layout_name;
+    use super::{OverlayView, overlay_label, validate_layout_name, view_signal};
 
     #[test]
     fn layout_name_cannot_escape_layout_directory() {
         assert!(validate_layout_name("math").is_ok());
         assert!(validate_layout_name("../secret").is_err());
         assert!(validate_layout_name("a/b").is_err());
+    }
+
+    #[test]
+    fn prefix_view_is_visible_in_active_overlay_status() {
+        assert_eq!(
+            overlay_label("logic", OverlayView::Prefix),
+            "logic (Space prefix)"
+        );
+    }
+
+    #[test]
+    fn overlay_views_have_distinct_update_signals() {
+        assert_eq!(view_signal(OverlayView::Prefix), libc::SIGUSR1);
+        assert_eq!(view_signal(OverlayView::Base), libc::SIGUSR2);
     }
 }

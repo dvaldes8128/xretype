@@ -150,6 +150,11 @@ fn render_layout_menu(layouts: &[Layout], executable: &Path) -> String {
 fn render_layout_layers(layouts: &[Layout], executable: &Path) -> String {
     let mut blocks = Vec::new();
     for layout in layouts {
+        let prefix_entries = layout
+            .entries
+            .iter()
+            .filter_map(|entry| layout.prefix_target(&entry.key).map(|key| (key, entry)))
+            .collect::<Vec<_>>();
         blocks.extend([
             String::new(),
             format!("  - name: Layout - {}", layout.name),
@@ -166,7 +171,25 @@ fn render_layout_layers(layouts: &[Layout], executable: &Path) -> String {
                 ])
             ),
         ]);
-        for entry in &layout.entries {
+        if !prefix_entries.is_empty() {
+            for modifier in ["Alt", "Ctrl", "Shift", "Super"] {
+                let chord = format!("{modifier}-{}", layout.prefix);
+                blocks.extend([format!("      {chord}:"), format!("        - {chord}")]);
+            }
+            blocks.extend([
+                format!("      {}:", yaml_key(&layout.prefix)),
+                format!("        - set_mode: {}", prefix_mode(layout)),
+                format!(
+                    "        - launch: {}",
+                    overlay_show_argv(executable, &layout.id, "prefix")
+                ),
+            ]);
+        }
+        for entry in layout
+            .entries
+            .iter()
+            .filter(|entry| layout.prefix_target(&entry.key).is_none())
+        {
             let symbol = entry.symbol.replace("\\n", "\n");
             let alt_key = alt_passthrough_key(&entry.key);
             let alt_value = alt_passthrough_value(&entry.key);
@@ -180,8 +203,64 @@ fn render_layout_layers(layouts: &[Layout], executable: &Path) -> String {
                 ),
             ]);
         }
+        if !prefix_entries.is_empty() {
+            blocks.extend([
+                String::new(),
+                format!(
+                    "  - name: Layout - {} ({} prefix)",
+                    layout.name, layout.prefix
+                ),
+                format!("    mode: {}", prefix_mode(layout)),
+                "    remap:".to_owned(),
+                "      Esc:".to_owned(),
+                format!("        - set_mode: {}", layout.mode),
+                format!(
+                    "        - launch: {}",
+                    overlay_show_argv(executable, &layout.id, "base")
+                ),
+                format!("      {}:", yaml_key(&layout.prefix)),
+                format!("        - set_mode: {}", layout.mode),
+                format!(
+                    "        - launch: {}",
+                    overlay_show_argv(executable, &layout.id, "base")
+                ),
+                format!("        - {}", yaml_key(&layout.prefix)),
+            ]);
+            for (key, entry) in prefix_entries {
+                let symbol = entry.symbol.replace("\\n", "\n");
+                blocks.extend([
+                    format!("      {}:", yaml_key(key)),
+                    format!("        - set_mode: {}", layout.mode),
+                    format!(
+                        "        - launch: {}",
+                        json_argv(&[
+                            path_string(executable),
+                            "paste".to_owned(),
+                            "--overlay-reset".to_owned(),
+                            layout.id.clone(),
+                            symbol,
+                        ])
+                    ),
+                ]);
+            }
+        }
     }
     blocks.join("\n").trim_start_matches('\n').to_owned()
+}
+
+fn prefix_mode(layout: &Layout) -> String {
+    format!("{}_{}_prefix", layout.mode, slug(&layout.prefix))
+}
+
+fn overlay_show_argv(executable: &Path, layout: &str, view: &str) -> String {
+    json_argv(&[
+        path_string(executable),
+        "overlay".to_owned(),
+        "show".to_owned(),
+        layout.to_owned(),
+        "--view".to_owned(),
+        view.to_owned(),
+    ])
 }
 
 fn generate_personal_info(
@@ -603,7 +682,14 @@ fn atomic_write(path: &Path, contents: &[u8]) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{alt_passthrough_key, alt_passthrough_value, replace_generated_block, yaml_key};
+    use std::path::Path;
+
+    use crate::xremap::{Layout, LayoutEntry};
+
+    use super::{
+        alt_passthrough_key, alt_passthrough_value, render_layout_layers, replace_generated_block,
+        yaml_key,
+    };
 
     #[test]
     fn replaces_old_markers_without_touching_surrounding_text() {
@@ -619,5 +705,36 @@ mod tests {
         assert_eq!(yaml_key("Shift-a"), "Shift-a");
         assert_eq!(alt_passthrough_key("Shift-a"), "Alt-Shift-a");
         assert_eq!(alt_passthrough_value("Alt-Shift-a"), "Shift-a");
+    }
+
+    #[test]
+    fn renders_a_space_prefix_mode_and_preserves_alt_space() {
+        let layout = Layout {
+            path: "logic.yml".into(),
+            id: "logic".to_owned(),
+            name: "Logic".to_owned(),
+            selector: "L".to_owned(),
+            mode: "logic_layer".to_owned(),
+            prefix: "Space".to_owned(),
+            entries: vec![
+                LayoutEntry {
+                    key: "a".to_owned(),
+                    symbol: "∧".to_owned(),
+                    label: None,
+                },
+                LayoutEntry {
+                    key: "Space-a".to_owned(),
+                    symbol: "∀".to_owned(),
+                    label: None,
+                },
+            ],
+            columns: 3,
+        };
+
+        let output = render_layout_layers(&[layout], Path::new("/bin/xretype"));
+        assert!(output.contains("mode: logic_layer_space_prefix"));
+        assert!(output.contains("Alt-Space:\n        - Alt-Space"));
+        assert!(output.contains("overlay-reset\", \"logic\", \"∀\""));
+        assert!(output.contains("Space:\n        - set_mode: logic_layer"));
     }
 }

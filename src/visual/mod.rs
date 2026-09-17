@@ -3,7 +3,7 @@ mod overlay;
 
 pub use notification::notify_error;
 pub use overlay::{
-    OverlayOperation, OverlayRequest, active_name as active_overlay_name,
+    OverlayOperation, OverlayRequest, OverlayView, active_name as active_overlay_name,
     run_host as run_overlay_host,
 };
 
