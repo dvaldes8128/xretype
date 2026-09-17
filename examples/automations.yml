@@ -1,0 +1,27 @@
+version: 1
+
+workflows:
+  delayed-paste:
+    description: Paste a caller-provided value after a configurable pause.
+    parameters:
+      text: { type: string }
+      delay-ms: { type: integer, default: 30 }
+      public: { type: boolean, default: false }
+    actions:
+      - action: sleep
+        milliseconds: { param: delay-ms }
+      - action: paste
+        text: { param: text }
+        public: { param: public }
+
+  announce-and-run:
+    parameters:
+      text: { type: string }
+    actions:
+      - action: notify
+        title: xretype workflow
+        body: Running delayed paste
+      - action: run
+        workflow: delayed-paste
+        with:
+          text: { param: text }

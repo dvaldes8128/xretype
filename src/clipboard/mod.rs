@@ -2,7 +2,9 @@ mod arboard;
 
 pub use arboard::paste_with;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Sensitivity {
     Sensitive,
     Public,

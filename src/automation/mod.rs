@@ -1,3 +1,6 @@
-mod sequence;
+mod workflow;
 
-pub use sequence::{SequenceAction, SequenceDefinition};
+pub use workflow::{
+    ActionSpec, ParameterDefinition, ParameterType, ScalarValue, WorkflowDefinition,
+    WorkflowDocument, WorkflowRegistry, default_automation_path,
+};

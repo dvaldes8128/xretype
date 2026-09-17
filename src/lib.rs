@@ -3,28 +3,27 @@ pub mod automation;
 pub mod cli;
 pub mod clipboard;
 pub mod config;
+pub mod daemon;
 pub mod input;
 pub mod sources;
 pub mod visual;
+pub mod xremap;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 use crate::{
     actions::{Action, Runtime},
-    cli::{Cli, Command, OverlayCommand},
+    automation::WorkflowRegistry,
+    cli::{Cli, Command, DaemonCommand, OverlayCommand, XremapCommand, XremapSection},
     clipboard::Sensitivity,
     config::Config,
-    sources::ValueSource,
     visual::{Notification, OverlayOperation, OverlayRequest},
 };
 
 pub fn run(cli: Cli) -> Result<()> {
     let config = Config::load(cli.config.as_deref())?;
     let notify_errors = config.feedback.notify_errors;
-    let action = command_to_action(cli.command, &config)?;
-    let mut runtime = Runtime::new(config);
-
-    let result = runtime.execute(action);
+    let result = dispatch(cli.command, cli.standalone, config);
     if let Err(error) = &result
         && notify_errors
     {
@@ -33,7 +32,112 @@ pub fn run(cli: Cli) -> Result<()> {
     result
 }
 
-fn command_to_action(command: Command, config: &Config) -> Result<Action> {
+fn dispatch(command: Command, standalone: bool, config: Config) -> Result<()> {
+    match command {
+        Command::Run(args) => {
+            let workflow = args.workflow.clone();
+            let parameters = args.parameter_map()?;
+            if standalone {
+                let registry = WorkflowRegistry::load(&config.automation_file())?;
+                registry.execute_strings(&workflow, &parameters, &mut Runtime::new(config))
+            } else {
+                daemon::call(daemon::DaemonRequest::Run {
+                    workflow,
+                    parameters,
+                })?;
+                Ok(())
+            }
+        }
+        Command::Validate => {
+            let registry = WorkflowRegistry::load(&config.automation_file())?;
+            println!("valid: {} workflow(s)", registry.workflow_count());
+            Ok(())
+        }
+        Command::Daemon(args) => {
+            if standalone {
+                anyhow::bail!("--standalone cannot be used with daemon commands");
+            }
+            let request = match args.command {
+                DaemonCommand::Status => daemon::DaemonRequest::Status,
+                DaemonCommand::Reload => daemon::DaemonRequest::Reload,
+            };
+            match daemon::call(request)? {
+                daemon::DaemonResponse::Done => println!("ok"),
+                daemon::DaemonResponse::Status(status) => print_status(&status),
+            }
+            Ok(())
+        }
+        Command::Xremap(args) => {
+            if standalone {
+                anyhow::bail!("--standalone is not meaningful for xremap generation commands");
+            }
+            match args.command {
+                XremapCommand::Generate(args) => {
+                    let options = xremap::GenerateOptions {
+                        root: args.root,
+                        section: args.only.map(|section| match section {
+                            XremapSection::Layouts => xremap::GenerateSection::Layouts,
+                            XremapSection::PersonalInfo => xremap::GenerateSection::PersonalInfo,
+                        }),
+                        dry_run: args.dry_run,
+                        check: args.check,
+                    };
+                    let changed = xremap::generate(&config, &options)?;
+                    if !args.dry_run && !args.check {
+                        println!("{}", if changed { "updated" } else { "unchanged" });
+                    }
+                    Ok(())
+                }
+                XremapCommand::Layouts(args) => {
+                    let root = args.root.unwrap_or_else(|| config.xremap_root());
+                    for layout in xremap::load_layouts(&root)? {
+                        println!(
+                            "{}  {:<16} mode={:<18} entries={:>3}  file={}",
+                            layout.selector,
+                            layout.name,
+                            layout.mode,
+                            layout.entries.len(),
+                            layout.path.display()
+                        );
+                    }
+                    Ok(())
+                }
+            }
+        }
+        Command::OverlayHost(args) => visual::run_overlay_host(&args.layout),
+        command => {
+            let action = command_to_action(command)?;
+            if standalone {
+                Runtime::new(config).execute(action)
+            } else {
+                daemon::call(daemon::DaemonRequest::Execute(action))?;
+                Ok(())
+            }
+        }
+    }
+}
+
+fn print_status(status: &daemon::DaemonStatus) {
+    println!("xretyped {} (pid {})", status.version, status.pid);
+    println!(
+        "configuration generation: {} ({} workflows)",
+        status.config_generation, status.workflow_count
+    );
+    println!("queue depth: {}", status.queue_depth);
+    println!(
+        "active workflow: {}",
+        status.active_workflow.as_deref().unwrap_or("none")
+    );
+    println!(
+        "active overlay: {}",
+        status.active_overlay.as_deref().unwrap_or("none")
+    );
+    if let Some(error) = &status.last_reload_error {
+        println!("last reload error: {error}");
+    }
+}
+
+fn command_to_action(command: Command) -> Result<Action> {
     match command {
         Command::Type(args) => Ok(Action::Type(args.value.resolve()?)),
         Command::Paste(args) => Ok(Action::Paste {
@@ -42,19 +146,12 @@ fn command_to_action(command: Command, config: &Config) -> Result<Action> {
         }),
         Command::Info(args) => {
             let path = sources::json::normalize_path(&args.path)?;
-            let file = args.file.unwrap_or_else(|| config.info_file());
-            let text = ValueSource::Json { file, path }
-                .resolve()
-                .context("could not resolve info value")?;
-
-            if args.type_text {
-                Ok(Action::Type(text))
-            } else {
-                Ok(Action::Paste {
-                    text,
-                    sensitivity: Sensitivity::from_public(args.public),
-                })
-            }
+            Ok(Action::Info {
+                file: args.file,
+                path,
+                type_text: args.type_text,
+                sensitivity: Sensitivity::from_public(args.public),
+            })
         }
         Command::Key(args) => Ok(Action::Key(args.key)),
         Command::Combo(args) => Ok(Action::Combo(args.keys)),
@@ -80,6 +177,13 @@ fn command_to_action(command: Command, config: &Config) -> Result<Action> {
                 },
             };
             Ok(Action::Overlay(request))
+        }
+        Command::Run(_)
+        | Command::Validate
+        | Command::Daemon(_)
+        | Command::Xremap(_)
+        | Command::OverlayHost(_) => {
+            anyhow::bail!("command is not a primitive action")
         }
     }
 }

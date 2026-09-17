@@ -1,6 +1,8 @@
 mod enigo;
+mod ydotool;
 
 pub use enigo::{EnigoInput, parse_key};
+pub use ydotool::YdotoolInput;
 
 use anyhow::Result;
 
