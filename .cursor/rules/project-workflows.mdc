@@ -1,0 +1,17 @@
+---
+description: Use the repository justfile for development and deployment workflows
+alwaysApply: true
+---
+
+# Project workflows
+
+- Run `just --list` to discover canonical tasks.
+- Prefer `just check` for full verification and `just docs-check` for
+  documentation-only changes.
+- Run `just examples-check` after workflow, generator, configuration, or
+  example changes.
+- Exercise the working-tree binary with `just run -- <arguments>`.
+- Do not run state-changing `install`, `deploy-local`, `docs-deploy`,
+  `xremap-generate`, or `service-*` recipes unless the user requested that
+  operation.
+- Update the justfile and its human documentation together.

@@ -1,5 +1,48 @@
 # Development
 
+## Just recipes
+
+The root `justfile` is the canonical interface for recurring development,
+installation, and deployment commands. Install
+[`just`](https://just.systems/man/en/packages.html) (or run `cargo install just`),
+then list the current recipes and descriptions:
+
+```bash
+just --list
+```
+
+The recipes are grouped by intent:
+
+- Development: `build`, `build-release`, `format`, `format-check`, `test`,
+  `lint`, `run`, and the aggregate `check`.
+- Documentation: `docs-build`, `docs-test`, `docs-check`, `docs-serve`, and
+  `docs-deploy`.
+- Example and configuration verification: `examples-check`,
+  `automations-check`, `xremap-preview`, and `xremap-check`.
+- Explicit state changes: `xremap-generate`, `install-binaries`,
+  `install-examples`, `install-service`, `install`, and `deploy-local`.
+- Installed service operations: `service-restart`, `service-status`, and
+  `service-logs`.
+
+Run the full pre-merge suite with:
+
+```bash
+just check
+```
+
+Run the working-tree CLI by placing its arguments after `--`:
+
+```bash
+just run -- --help
+just run -- xremap generate --dry-run
+```
+
+`docs-deploy` validates the book and uses an authenticated GitHub CLI (`gh`) to
+dispatch the committed `main` branch's GitHub Pages workflow; it does not
+publish uncommitted files.
+Recipes that install files, restart services, regenerate xremap configuration,
+or dispatch a workflow are intentionally named as state-changing operations.
+
 ## Repository layout
 
 The crate builds a shared library plus two binaries:
@@ -35,11 +78,11 @@ cargo test
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-Build or serve the documentation with mdBook 0.5.4:
+The documentation recipes use mdBook 0.5.4:
 
 ```bash
-mdbook build
-mdbook serve --open
+just docs-build
+just docs-serve
 ```
 
 The generated `book/` directory is ignored by Git. GitHub Actions runs the same

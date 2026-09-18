@@ -88,6 +88,30 @@ browse the source guides below:
 - [Examples](examples/README.md) — a complete configuration that can be copied
   into a fresh account
 
+## Project workflows
+
+The repository includes a `justfile` as the canonical interface for development,
+installation, and deployment tasks. Install
+[`just`](https://just.systems/man/en/packages.html), then discover every recipe:
+
+```bash
+just --list
+```
+
+Common flows are:
+
+```bash
+just check          # formatting, tests, lint, docs, and isolated examples
+just docs-serve     # local documentation with live reload
+just install        # binaries, starter files, and the systemd user service
+just deploy-local   # verify, reinstall, restart, and inspect the daemon
+just docs-deploy    # validate docs and trigger the Pages workflow for main
+```
+
+Installation and deployment recipes change user configuration or service state.
+Review their descriptions with `just --list` before running them. See the
+[development guide](docs/development.md#just-recipes) for the complete grouping.
+
 ## Safety model
 
 Sensitive paste is the default. It asks compatible clipboard managers not to

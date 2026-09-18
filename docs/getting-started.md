@@ -10,6 +10,8 @@ the files used below.
 xretype is intended for a Linux desktop running Wayland. Building it requires:
 
 - Rust 1.89 or newer
+- [`just`](https://just.systems/man/en/packages.html), the repository's task
+  runner (or install it with `cargo install just`)
 - a C compiler and `pkg-config`
 - development libraries for libei, D-Bus, GTK4, and gtk4-layer-shell
 - xremap when using the generated keyboard integration
@@ -24,8 +26,9 @@ as a `pkg-config` error during `cargo build`.
 From the repository root:
 
 ```bash
-cargo test
-cargo install --path . --force
+just --version
+just test
+just install-binaries
 ```
 
 Cargo installs both `xretype` and `xretyped` in `~/.cargo/bin`. Confirm that the
@@ -77,10 +80,7 @@ valid: 5 workflow(s)
 Install the systemd user unit:
 
 ```bash
-mkdir -p ~/.config/systemd/user
-cp contrib/systemd/xretyped.service ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now xretyped.service
+just install-service
 ```
 
 Check both systemd and xretype's own status endpoint:
