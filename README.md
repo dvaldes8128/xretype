@@ -69,6 +69,9 @@ If the daemon is unavailable, xretype reports the socket path and suggests
 
 ## Documentation
 
+Read the [hosted documentation](https://dvaldes8128.github.io/xretype/) or
+browse the source guides below:
+
 - [Getting started](docs/getting-started.md) — prerequisites, installation, and
   a first end-to-end setup
 - [Configuration](docs/configuration.md) — every TOML setting and backend

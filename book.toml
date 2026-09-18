@@ -1,0 +1,27 @@
+[book]
+title = "xretype documentation"
+description = "Typing automation, protected paste, workflows, and xremap integration for Linux on Wayland"
+authors = ["Daniel Valdes"]
+language = "en"
+src = "docs"
+
+[rust]
+edition = "2024"
+
+[build]
+build-dir = "book"
+create-missing = false
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+no-section-label = true
+git-repository-url = "https://github.com/dvaldes8128/xretype"
+git-repository-icon = "fab-github"
+edit-url-template = "https://github.com/dvaldes8128/xretype/edit/main/{path}"
+site-url = "/xretype/"
+
+[output.html.search]
+enable = true
+limit-results = 30
+use-boolean-and = true

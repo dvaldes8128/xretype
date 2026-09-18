@@ -181,7 +181,7 @@ triggers enter their respective selection modes and display notifications with
 available choices.
 
 Protect the source JSON with mode `0600`. Generated actions paste sensitively by
-default, but the [safety model](../README.md#safety-model) still applies.
+default, but the [safety model](index.md#safety-and-scope) still applies.
 
 ## Generate, inspect, and check
 

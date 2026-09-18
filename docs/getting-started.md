@@ -1,8 +1,9 @@
 # Getting started
 
 This guide installs xretype from source, starts its per-user daemon, and runs a
-small workflow. The checked-in [example set](../examples/README.md) provides all
-of the files used below.
+small workflow. The checked-in [example
+set](https://github.com/dvaldes8128/xretype/tree/main/examples) provides all of
+the files used below.
 
 ## 1. Install prerequisites
 

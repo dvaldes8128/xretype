@@ -35,6 +35,17 @@ cargo test
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
+Build or serve the documentation with mdBook 0.5.4:
+
+```bash
+mdbook build
+mdbook serve --open
+```
+
+The generated `book/` directory is ignored by Git. GitHub Actions runs the same
+build for documentation pull requests and publishes successful `main` builds
+to GitHub Pages.
+
 Exercise parser help after changing CLI definitions:
 
 ```bash
