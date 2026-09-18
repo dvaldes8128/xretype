@@ -1,0 +1,21 @@
+{
+  "Contact": {
+    "Email": "person@example.com",
+    "Phone": "+1 555 0100"
+  },
+  "Name": {
+    "Display": "Example Person",
+    "Given": "Example",
+    "Family": "Person"
+  },
+  "Work": {
+    "Company": "Example Company",
+    "Title": "Example Role",
+    "Address": {
+      "Street": "100 Example Avenue",
+      "City": "Example City",
+      "Region": "EX",
+      "Postal": "00000"
+    }
+  }
+}

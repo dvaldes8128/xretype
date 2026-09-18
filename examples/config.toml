@@ -1,0 +1,21 @@
+# Copy to ~/.config/xretype/config.toml. All values below are the built-in
+# defaults, so this file works without knowing the user's home directory.
+
+[info]
+# Paths in TOML are not shell-expanded. Use an absolute path when overriding:
+# file = "/home/you/.config/personal_info.json"
+
+[input]
+backend = "libei" # or "ydotool"
+paste_delay_ms = 30
+clipboard_serve_ms = 500
+
+[feedback]
+notify_errors = true
+
+[automation]
+# file = "/home/you/.config/xretype/automations.yml"
+
+[xremap]
+# root = "/home/you/.config/xremap"
+# executable = "/home/you/.cargo/bin/xretype"

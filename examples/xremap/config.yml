@@ -1,0 +1,12 @@
+# Minimal xremap configuration used by the xretype examples.
+# Start xremap with --allow-launch=true because generated mappings launch
+# xretype commands.
+
+keymap:
+  # BEGIN GENERATED PERSONAL_INFO (run: xretype xremap generate --only personal-info)
+  # Run xretype xremap generate to replace this line.
+  # END GENERATED PERSONAL_INFO
+
+  # BEGIN GENERATED LAYOUTS (run: xretype xremap generate --only layouts)
+  # Run xretype xremap generate to replace this line.
+  # END GENERATED LAYOUTS

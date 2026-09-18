@@ -1,6 +1,17 @@
 version: 1
 
 workflows:
+  announce:
+    description: Show a caller-provided desktop notification.
+    parameters:
+      message: { type: string }
+      timeout-ms: { type: integer, default: 2000 }
+    actions:
+      - action: notify
+        title: xretype example
+        body: { param: message }
+        timeout_ms: { param: timeout-ms }
+
   delayed-paste:
     description: Paste a caller-provided value after a configurable pause.
     parameters:
@@ -15,6 +26,7 @@ workflows:
         public: { param: public }
 
   announce-and-run:
+    description: Compose notification and delayed-paste actions.
     parameters:
       text: { type: string }
     actions:
@@ -25,3 +37,20 @@ workflows:
         workflow: delayed-paste
         with:
           text: { param: text }
+
+  paste-contact-email:
+    description: Resolve a value at execution time without putting it in YAML.
+    actions:
+      - action: info
+        path: [Contact, Email]
+
+  show-logic-overlay:
+    description: Display the example layout overlay for five seconds.
+    actions:
+      - action: overlay
+        operation: show
+        name: logic
+      - action: sleep
+        milliseconds: 5000
+      - action: overlay
+        operation: hide

@@ -1,0 +1,16 @@
+name: Logic
+selector: L
+mode: logic_layer
+prefix: Space
+columns: 3
+
+entries:
+  - { key: a, symbol: "∧" }
+  - { key: o, symbol: "∨" }
+  - { key: n, symbol: "¬" }
+  - { key: i, symbol: "→" }
+  - { key: e, symbol: "↔" }
+  - { key: Space-a, symbol: "∀" }
+  - { key: Space-e, symbol: "∃" }
+  - { key: Space-i, symbol: "∈" }
+  - { key: Space-n, symbol: "∉" }
