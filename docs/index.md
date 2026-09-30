@@ -23,6 +23,7 @@ use the focused guides as needed:
   layouts, templates, and overlays.
 - [Troubleshooting](troubleshooting.md) provides ordered diagnostic checks.
 - [Development](development.md) explains the architecture and project checks.
+- [Roadmap](roadmap.md) lists the planned releases and their scope.
 
 Complete, mutually compatible source files live in the repository's
 [examples directory](https://github.com/dvaldes8128/xretype/tree/main/examples).

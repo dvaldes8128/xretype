@@ -11,3 +11,4 @@
 - [xremap integration](xremap-integration.md)
 - [Troubleshooting](troubleshooting.md)
 - [Development](development.md)
+- [Roadmap](roadmap.md)
