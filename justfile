@@ -125,7 +125,7 @@ install-examples:
     echo "Starter files installed without replacing existing configuration."
 
 # Install binaries, starter files, and the daemon service.
-install: install-binaries install-examples install-service
+install: install-binaries install-examples install-service service-restart
 
 # Verify, install, and restart the local user service.
 deploy-local: check install-binaries install-service
