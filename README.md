@@ -1,5 +1,7 @@
 # xretype
 
+[![Check](https://github.com/dvaldes8128/xretype/actions/workflows/check.yml/badge.svg)](https://github.com/dvaldes8128/xretype/actions/workflows/check.yml)
+
 `xretype` is a Linux/Wayland automation runtime for
 [xremap](https://github.com/xremap/xremap). xremap recognizes devices,
 shortcuts, and modes; xretype handles the stateful work behind them: serialized

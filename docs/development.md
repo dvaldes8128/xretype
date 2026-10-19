@@ -89,6 +89,19 @@ The generated `book/` directory is ignored by Git. GitHub Actions runs the same
 build for documentation pull requests and publishes successful `main` builds
 to GitHub Pages.
 
+### Continuous integration
+
+`.github/workflows/check.yml` runs on every push and pull request:
+
+- The `check` job installs the GTK4, gtk4-layer-shell, and graphene development
+  libraries, then runs the full `just check` suite on stable Rust.
+- The `msrv` job compiles all targets on Rust 1.89, the minimum supported
+  version declared by `rust-version` in `Cargo.toml`.
+
+Both jobs pin the `ubuntu-26.04` runner because `libgtk4-layer-shell-dev` is
+not packaged for Ubuntu 24.04. Documentation builds stay in
+`.github/workflows/docs.yml`, which also publishes to GitHub Pages.
+
 Exercise parser help after changing CLI definitions:
 
 ```bash

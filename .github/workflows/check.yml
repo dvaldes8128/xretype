@@ -1,0 +1,92 @@
+name: Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: just check (stable)
+    # Pinned: libgtk4-layer-shell-dev only exists on Ubuntu 25.10+; 24.04 lacks it.
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-4-dev \
+            libgtk4-layer-shell-dev \
+            libgraphene-1.0-dev \
+            pkg-config
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install just
+        uses: extractions/setup-just@v4
+
+      - name: Install mdBook
+        env:
+          MDBOOK_VERSION: 0.5.4
+        run: |
+          set -o pipefail
+          curl --proto '=https' --tlsv1.2 -LsSf \
+            "https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/mdbook" --version
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: stable
+
+      - name: Run just check
+        run: just check
+
+  msrv:
+    name: Rust 1.89 (MSRV)
+    # Pinned: same gtk4-layer-shell constraint as the check job.
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-4-dev \
+            libgtk4-layer-shell-dev \
+            libgraphene-1.0-dev \
+            pkg-config
+
+      - name: Install Rust 1.89
+        uses: dtolnay/rust-toolchain@1.89
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: msrv
+
+      - name: Compile all targets
+        run: cargo check --locked --all-targets
