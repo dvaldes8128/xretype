@@ -7,6 +7,13 @@ failing layer.
 ## Baseline checks
 
 ```bash
+xretype doctor
+```
+
+`doctor` runs these checks for you and prints an `ok`, `warn`, or `fail` row for
+each one, exiting non-zero only when a check failed. The same checks, by hand:
+
+```bash
 xretype --version
 xretype validate
 xretype daemon status
@@ -14,8 +21,9 @@ systemctl --user status xretyped.service
 journalctl --user -u xretyped.service --since today
 ```
 
-Confirm that the client and daemon report the same installed version. After
-installing a new build, restart the daemon:
+Confirm that the client and daemon report the same installed version — `doctor`
+names both versions and fails when they differ. After installing a new build,
+restart the daemon:
 
 ```bash
 systemctl --user restart xretyped.service

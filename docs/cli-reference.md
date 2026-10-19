@@ -169,6 +169,37 @@ xretype daemon reload
 values. `reload` immediately parses the configured workflow file and returns an
 error without replacing the current registry if parsing or validation fails.
 
+## Diagnostics
+
+```bash
+xretype doctor
+```
+
+`doctor` reads the session and the daemon, then prints one row per check:
+
+```text
+ok    session            wayland (wayland-0)
+ok    runtime directory  /run/user/1000
+ok    config             parsed
+ok    automations        2 workflow(s)
+ok    daemon socket      /run/user/1000/xretype/xretyped.sock
+ok    daemon             responding (pid 3633)
+ok    daemon version     0.1.0
+ok    last reload error  none
+
+8 ok, 0 warn, 0 fail
+```
+
+Each row is `ok`, `warn`, or `fail`. It is read-only, and like `schema` it runs
+before the configuration is loaded, so it still reports when `config.toml` will
+not parse. Only a `fail` row makes the command exit non-zero: a `warn` is
+something degraded that still works, such as `XDG_RUNTIME_DIR` being unset and
+falling back to `/tmp`.
+
+Checks that need a daemon response — version match and last reload error — are
+skipped when the daemon cannot be reached, rather than guessing. Reported
+details never include resolved action text or parameter values.
+
 ## xremap generation
 
 ```bash

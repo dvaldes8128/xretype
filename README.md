@@ -48,10 +48,16 @@ cp -n contrib/systemd/xretyped.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now xretyped.service
 
+xretype doctor
 xretype daemon status
 xretype validate
 xretype notify "xretype is ready"
 ```
+
+`xretype doctor` prints an `ok`, `warn`, or `fail` row for the session,
+runtime directory, configuration, workflow file, daemon socket, daemon
+reachability, version match, and last reload error, and exits non-zero only
+when a check failed.
 
 The copied personal-information values are fictitious; replace them before
 creating real shortcuts.

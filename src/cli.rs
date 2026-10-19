@@ -47,6 +47,8 @@ pub enum Command {
     Validate,
     /// Print a machine-readable JSON Schema for a configuration file.
     Schema(SchemaArgs),
+    /// Inspect the local environment and report what is working.
+    Doctor,
     /// Inspect or reload the persistent service.
     Daemon(DaemonArgs),
     /// Generate or inspect the xremap integration.

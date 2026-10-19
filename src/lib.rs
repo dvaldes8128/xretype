@@ -4,6 +4,7 @@ pub mod cli;
 pub mod clipboard;
 pub mod config;
 pub mod daemon;
+pub mod doctor;
 pub mod input;
 pub mod sources;
 pub mod visual;
@@ -23,8 +24,8 @@ use crate::{
 };
 
 pub fn run(cli: Cli) -> Result<()> {
-    // `schema` describes the configuration files themselves, so it must stay
-    // reachable when one of them will not parse.
+    // `schema` and `doctor` describe the configuration and environment, so
+    // they must stay reachable when one of them will not parse.
     if let Command::Schema(args) = &cli.command {
         return match (args.write, args.target.as_deref()) {
             (true, None) => schema::write_all(),
@@ -34,6 +35,9 @@ pub fn run(cli: Cli) -> Result<()> {
             (true, Some(_)) => anyhow::bail!("--write cannot be combined with TARGET"),
             (false, None) => anyhow::bail!("schema needs a TARGET or --write"),
         };
+    }
+    if matches!(cli.command, Command::Doctor) {
+        return doctor::run(cli.config.as_deref());
     }
 
     let config = Config::load(cli.config.as_deref())?;
@@ -209,6 +213,7 @@ fn command_to_action(command: Command) -> Result<Action> {
         Command::Run(_)
         | Command::Validate
         | Command::Schema(_)
+        | Command::Doctor
         | Command::Daemon(_)
         | Command::Xremap(_)
         | Command::OverlayHost(_) => {

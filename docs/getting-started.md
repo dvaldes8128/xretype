@@ -94,6 +94,18 @@ The status output includes the daemon version and PID, loaded workflow count,
 configuration generation, queue depth, active workflow and overlay, and the
 last reload error if one exists.
 
+Confirm the whole environment in one command:
+
+```bash
+xretype doctor
+```
+
+`doctor` reports the session type, `XDG_RUNTIME_DIR`, configuration, workflow
+file, daemon socket, daemon reachability, client/daemon version match, and last
+reload error as `ok`, `warn`, or `fail` rows, and exits non-zero only when a
+check failed. It reads nothing and changes nothing, so it is safe to rerun after
+any change.
+
 ## 5. Exercise the safe commands
 
 Notifications and validation do not inject keyboard input:
