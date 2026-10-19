@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Config",
+  "type": "object",
+  "properties": {
+    "info": {
+      "$ref": "#/$defs/InfoConfig"
+    },
+    "input": {
+      "$ref": "#/$defs/InputConfig"
+    },
+    "feedback": {
+      "$ref": "#/$defs/FeedbackConfig"
+    },
+    "automation": {
+      "$ref": "#/$defs/AutomationConfig"
+    },
+    "xremap": {
+      "$ref": "#/$defs/XremapConfig"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "InfoConfig": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "InputConfig": {
+      "type": "object",
+      "properties": {
+        "backend": {
+          "$ref": "#/$defs/InputBackendKind"
+        },
+        "paste_delay_ms": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 30
+        },
+        "clipboard_serve_ms": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 500
+        }
+      },
+      "additionalProperties": false
+    },
+    "InputBackendKind": {
+      "type": "string",
+      "enum": [
+        "libei",
+        "ydotool"
+      ]
+    },
+    "FeedbackConfig": {
+      "type": "object",
+      "properties": {
+        "notify_errors": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "AutomationConfig": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "XremapConfig": {
+      "type": "object",
+      "properties": {
+        "root": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "executable": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

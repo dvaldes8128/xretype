@@ -21,6 +21,23 @@ workflows:
 Unknown fields, an unsupported version, invalid types, empty action lists,
 missing required arguments, and statically detectable call cycles are rejected.
 
+### Editor validation
+
+A JSON Schema for the document above is printed by `xretype schema automations`
+and committed under `schemas/automations-v1.schema.json`. Point an editor at it
+to catch unknown fields, an unsupported `version`, empty action lists, and
+invalid workflow or parameter names while typing:
+
+```yaml
+# yaml-language-server: $schema=./automations-v1.schema.json
+version: 1
+workflows: {}
+```
+
+The schema mirrors the loader, which stays authoritative. It cannot express
+call cycles, parameter type matching against `run.with` argument types, or the
+maximum nesting depth, so run `xretype validate` after editing.
+
 ## Parameters and expressions
 
 A parameter has type `string`, `integer`, or `boolean`. It is required unless a

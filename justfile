@@ -102,6 +102,15 @@ xremap-check:
 xremap-generate:
     cargo run --quiet -- xremap generate
 
+# Refresh the committed JSON Schemas under schemas/. `just check` fails when
+# they no longer match the Rust types.
+schema-generate:
+    cargo run --quiet -- schema --write
+
+# Print one JSON Schema to stdout: `just schema automations`.
+schema target:
+    cargo run --quiet -- schema {{target}}
+
 # Install xretype and xretyped into Cargo's binary directory.
 install-binaries:
     cargo install --path . --force

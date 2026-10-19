@@ -18,9 +18,10 @@ The recipes are grouped by intent:
 - Documentation: `docs-build`, `docs-test`, `docs-check`, `docs-serve`, and
   `docs-deploy`.
 - Example and configuration verification: `examples-check`,
-  `automations-check`, `xremap-preview`, and `xremap-check`.
-- Explicit state changes: `xremap-generate`, `install-binaries`,
-  `install-examples`, `install-service`, `install`, and `deploy-local`.
+  `automations-check`, `xremap-preview`, `xremap-check`, and `schema`.
+- Explicit state changes: `schema-generate`, `xremap-generate`,
+  `install-binaries`, `install-examples`, `install-service`, `install`, and
+  `deploy-local`.
 - Installed service operations: `service-restart`, `service-status`, and
   `service-logs`.
 
@@ -62,6 +63,11 @@ src/
 ├── visual/                 notifications and GTK layer-shell overlays
 └── xremap/                 layout model and marked-block generator
 ```
+
+`src/schema.rs` derives the JSON Schemas for both hand-edited configuration
+files from those same types and renders them into the committed `schemas/`
+directory. `just check` fails when a type change is not followed by
+`just schema-generate`.
 
 The daemon uses one worker queue for actions and workflows. That serialization
 prevents concurrent input sequences and clipboard offers from interleaving.

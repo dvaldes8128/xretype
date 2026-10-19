@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::{
@@ -13,7 +14,7 @@ use crate::{
     visual::{Notification, OverlayOperation, OverlayRequest, OverlayView},
 };
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct WorkflowDocument {
     pub version: u32,
@@ -21,7 +22,7 @@ pub struct WorkflowDocument {
     pub workflows: BTreeMap<String, WorkflowDefinition>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct WorkflowDefinition {
     #[serde(default)]
@@ -31,7 +32,7 @@ pub struct WorkflowDefinition {
     pub actions: Vec<ActionSpec>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ParameterDefinition {
     #[serde(rename = "type")]
@@ -40,7 +41,7 @@ pub struct ParameterDefinition {
     pub default: Option<ScalarValue>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum ParameterType {
     String,
@@ -48,7 +49,7 @@ pub enum ParameterType {
     Boolean,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum ScalarValue {
     Boolean(bool),
@@ -66,41 +67,41 @@ impl ScalarValue {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ParamReference {
     param: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum StringExpr {
     Param(ParamReference),
     Literal(String),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum IntegerExpr {
     Param(ParamReference),
     Literal(i64),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum BooleanExpr {
     Param(ParamReference),
     Literal(bool),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum ScalarExpr {
     Param(ParamReference),
     Literal(ScalarValue),
 }
 
-#[derive(Debug, Clone, Copy, Default, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum InfoDelivery {
     #[default]
@@ -108,7 +109,7 @@ pub enum InfoDelivery {
     Type,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum WorkflowOverlayOperation {
     Show,
@@ -116,7 +117,7 @@ pub enum WorkflowOverlayOperation {
     Toggle,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(tag = "action", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum ActionSpec {
     Type {

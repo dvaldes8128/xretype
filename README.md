@@ -21,6 +21,8 @@ The package installs two binaries:
 - Resolve values from a local JSON file without copying them into xremap's
   configuration.
 - Define typed, composable YAML workflows with load-time validation.
+- Validate `automations.yml` and `config.toml` in an editor with JSON Schemas
+  generated from the loader's own types.
 - Generate xremap personal-data menus and symbol layouts from small source
   files.
 - Show native, non-focusable GTK4 layer-shell keyboard overlays.

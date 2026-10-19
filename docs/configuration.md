@@ -19,6 +19,11 @@ commands.
 Unknown sections and keys are rejected so misspellings cannot silently change
 behavior.
 
+A matching JSON Schema is printed by `xretype schema config` and committed as
+`schemas/config.schema.json`, so an editor can flag unknown sections and keys
+while you type. It describes the same structure the loader enforces; values
+such as `input.backend` are checked against the enum the schema also declares.
+
 ## Complete example
 
 ```toml

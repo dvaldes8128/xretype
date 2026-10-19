@@ -4,9 +4,10 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use schemars::JsonSchema;
 use serde::Deserialize;
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
     pub info: InfoConfig,
@@ -16,26 +17,26 @@ pub struct Config {
     pub xremap: XremapConfig,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct InfoConfig {
     pub file: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct AutomationConfig {
     pub file: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct XremapConfig {
     pub root: Option<PathBuf>,
     pub executable: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct InputConfig {
     pub backend: InputBackendKind,
@@ -43,7 +44,7 @@ pub struct InputConfig {
     pub clipboard_serve_ms: u64,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum InputBackendKind {
     #[default]
@@ -61,7 +62,7 @@ impl Default for InputConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct FeedbackConfig {
     pub notify_errors: bool,

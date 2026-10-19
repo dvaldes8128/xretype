@@ -1,0 +1,378 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkflowDocument",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0,
+      "const": 1
+    },
+    "workflows": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/WorkflowDefinition"
+      },
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_-]*$"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "version"
+  ],
+  "$defs": {
+    "WorkflowDefinition": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ParameterDefinition"
+          },
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ActionSpec"
+          },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "actions"
+      ]
+    },
+    "ParameterDefinition": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/ParameterType"
+        },
+        "default": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScalarValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ]
+    },
+    "ParameterType": {
+      "type": "string",
+      "enum": [
+        "string",
+        "integer",
+        "boolean"
+      ]
+    },
+    "ScalarValue": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer",
+          "format": "int64"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "ActionSpec": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "type"
+            },
+            "text": {
+              "$ref": "#/$defs/StringExpr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "text"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "paste"
+            },
+            "text": {
+              "$ref": "#/$defs/StringExpr"
+            },
+            "public": {
+              "$ref": "#/$defs/BooleanExpr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "text"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "info"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/StringExpr"
+              },
+              "minItems": 1
+            },
+            "file": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StringExpr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "delivery": {
+              "$ref": "#/$defs/InfoDelivery"
+            },
+            "public": {
+              "$ref": "#/$defs/BooleanExpr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "path"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "key"
+            },
+            "key": {
+              "$ref": "#/$defs/StringExpr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "key"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "combo"
+            },
+            "keys": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/StringExpr"
+              },
+              "minItems": 1
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "keys"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "sleep"
+            },
+            "milliseconds": {
+              "$ref": "#/$defs/IntegerExpr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "milliseconds"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "notify"
+            },
+            "title": {
+              "$ref": "#/$defs/StringExpr"
+            },
+            "body": {
+              "$ref": "#/$defs/StringExpr"
+            },
+            "timeout_ms": {
+              "$ref": "#/$defs/IntegerExpr"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "body"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "overlay"
+            },
+            "operation": {
+              "$ref": "#/$defs/WorkflowOverlayOperation"
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StringExpr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "operation"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "run"
+            },
+            "workflow": {
+              "$ref": "#/$defs/StringExpr"
+            },
+            "with": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/ScalarExpr"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "workflow"
+          ]
+        }
+      ]
+    },
+    "StringExpr": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ParamReference"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "ParamReference": {
+      "type": "object",
+      "properties": {
+        "param": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "param"
+      ]
+    },
+    "BooleanExpr": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ParamReference"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
+    },
+    "InfoDelivery": {
+      "type": "string",
+      "enum": [
+        "paste",
+        "type"
+      ]
+    },
+    "IntegerExpr": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ParamReference"
+        },
+        {
+          "type": "integer",
+          "format": "int64"
+        }
+      ]
+    },
+    "WorkflowOverlayOperation": {
+      "type": "string",
+      "enum": [
+        "show",
+        "hide",
+        "toggle"
+      ]
+    },
+    "ScalarExpr": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ParamReference"
+        },
+        {
+          "$ref": "#/$defs/ScalarValue"
+        }
+      ]
+    }
+  }
+}

@@ -9,6 +9,8 @@ pub mod sources;
 pub mod visual;
 pub mod xremap;
 
+mod schema;
+
 use anyhow::Result;
 
 use crate::{
@@ -21,6 +23,19 @@ use crate::{
 };
 
 pub fn run(cli: Cli) -> Result<()> {
+    // `schema` describes the configuration files themselves, so it must stay
+    // reachable when one of them will not parse.
+    if let Command::Schema(args) = &cli.command {
+        return match (args.write, args.target.as_deref()) {
+            (true, None) => schema::write_all(),
+            (false, Some(target)) => schema::print(target),
+            // clap enforces both of these on parsed input; `run` is public, so
+            // a programmatically built `Cli` must still fail cleanly.
+            (true, Some(_)) => anyhow::bail!("--write cannot be combined with TARGET"),
+            (false, None) => anyhow::bail!("schema needs a TARGET or --write"),
+        };
+    }
+
     let config = Config::load(cli.config.as_deref())?;
     let notify_errors = config.feedback.notify_errors;
     let result = dispatch(cli.command, cli.standalone, config);
@@ -193,6 +208,7 @@ fn command_to_action(command: Command) -> Result<Action> {
         }
         Command::Run(_)
         | Command::Validate
+        | Command::Schema(_)
         | Command::Daemon(_)
         | Command::Xremap(_)
         | Command::OverlayHost(_) => {

@@ -130,6 +130,34 @@ whitespace.
 
 See [Workflows](workflows.md) for the complete schema.
 
+## Machine-readable schemas
+
+```bash
+xretype schema automations
+xretype schema config
+xretype schema --write
+```
+
+`schema` prints the JSON Schema (draft 2020-12) for one configuration file.
+`automations` describes the version 1 workflow document and `config` describes
+`config.toml`. Redirect the output to a file and point an editor at it:
+
+```bash
+xretype schema automations > ~/.config/xretype/automations.schema.json
+```
+
+```yaml
+# yaml-language-server: $schema=./automations.schema.json
+version: 1
+workflows: {}
+```
+
+`--write` refreshes every file committed under `schemas/` instead of printing;
+it is what `just schema-generate` runs. Schemas are derived from the same Rust
+types the loader parses, so they describe structure only: call cycles,
+parameter type matching, `run.with` argument types, and nesting depth are
+rejected by `xretype validate`, which remains authoritative.
+
 ## Daemon management
 
 ```bash

@@ -45,6 +45,8 @@ pub enum Command {
     Run(RunArgs),
     /// Parse and validate the automation file without executing it.
     Validate,
+    /// Print a machine-readable JSON Schema for a configuration file.
+    Schema(SchemaArgs),
     /// Inspect or reload the persistent service.
     Daemon(DaemonArgs),
     /// Generate or inspect the xremap integration.
@@ -52,6 +54,17 @@ pub enum Command {
     /// Internal native overlay renderer.
     #[command(name = "overlay-host", hide = true)]
     OverlayHost(OverlayHostArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct SchemaArgs {
+    /// Which document to describe: `automations` or `config`.
+    #[arg(value_name = "TARGET", required_unless_present = "write")]
+    pub target: Option<String>,
+
+    /// Regenerate every committed schema under `schemas/` instead of printing.
+    #[arg(long, conflicts_with = "target")]
+    pub write: bool,
 }
 
 #[derive(Debug, Args)]
