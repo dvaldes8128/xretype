@@ -122,6 +122,8 @@ The generator also emits:
 
 - Esc mappings that leave the layout and hide its overlay
 - Alt passthrough for base-layer entries
+- Shift passthrough for base-layer entries, unless an explicit `Shift-key`
+  entry defines a shifted symbol
 - Alt/Ctrl/Shift/Super passthrough for the prefix key
 - overlay transitions between base and prefix views
 - a paste action that returns the overlay to base after a prefixed symbol

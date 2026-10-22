@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, VecDeque},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     env, fs,
     io::Write,
     os::unix::fs::PermissionsExt,
@@ -150,6 +150,11 @@ fn render_layout_menu(layouts: &[Layout], executable: &Path) -> String {
 fn render_layout_layers(layouts: &[Layout], executable: &Path) -> String {
     let mut blocks = Vec::new();
     for layout in layouts {
+        let entry_keys = layout
+            .entries
+            .iter()
+            .map(|entry| entry.key.as_str())
+            .collect::<BTreeSet<_>>();
         let prefix_entries = layout
             .entries
             .iter()
@@ -196,6 +201,15 @@ fn render_layout_layers(layouts: &[Layout], executable: &Path) -> String {
             blocks.extend([
                 format!("      {}:", yaml_key(&alt_key)),
                 format!("        - {}", yaml_key(&alt_value)),
+            ]);
+            let shift_key = shift_passthrough_key(&entry.key);
+            if shift_key != entry.key && !entry_keys.contains(shift_key.as_str()) {
+                blocks.extend([
+                    format!("      {}:", yaml_key(&shift_key)),
+                    format!("        - {}", yaml_key(&entry.key)),
+                ]);
+            }
+            blocks.extend([
                 format!("      {}:", yaml_key(&entry.key)),
                 format!(
                     "        - launch: {}",
@@ -597,6 +611,14 @@ fn alt_passthrough_value(key: &str) -> String {
         .to_owned()
 }
 
+fn shift_passthrough_key(key: &str) -> String {
+    if key.starts_with("Shift-") {
+        key.to_owned()
+    } else {
+        format!("Shift-{key}")
+    }
+}
+
 fn notify_argv(executable: &Path, title: &str, body: &str, timeout_ms: u32) -> String {
     json_argv(&[
         path_string(executable),
@@ -688,7 +710,7 @@ mod tests {
 
     use super::{
         alt_passthrough_key, alt_passthrough_value, render_layout_layers, replace_generated_block,
-        yaml_key,
+        shift_passthrough_key, yaml_key,
     };
 
     #[test]
@@ -705,6 +727,8 @@ mod tests {
         assert_eq!(yaml_key("Shift-a"), "Shift-a");
         assert_eq!(alt_passthrough_key("Shift-a"), "Alt-Shift-a");
         assert_eq!(alt_passthrough_value("Alt-Shift-a"), "Shift-a");
+        assert_eq!(shift_passthrough_key("a"), "Shift-a");
+        assert_eq!(shift_passthrough_key("Shift-a"), "Shift-a");
     }
 
     #[test]
@@ -734,7 +758,40 @@ mod tests {
         let output = render_layout_layers(&[layout], Path::new("/bin/xretype"));
         assert!(output.contains("mode: logic_layer_space_prefix"));
         assert!(output.contains("Alt-Space:\n        - Alt-Space"));
+        assert!(output.contains("Shift-a:\n        - a"));
         assert!(output.contains("overlay-reset\", \"logic\", \"∀\""));
         assert!(output.contains("Space:\n        - set_mode: logic_layer"));
+    }
+
+    #[test]
+    fn explicit_shift_entry_overrides_shift_passthrough() {
+        let layout = Layout {
+            path: "math.yml".into(),
+            id: "math".to_owned(),
+            name: "Math".to_owned(),
+            selector: "M".to_owned(),
+            mode: "math_layer".to_owned(),
+            prefix: "Space".to_owned(),
+            entries: vec![
+                LayoutEntry {
+                    key: "a".to_owned(),
+                    symbol: "α".to_owned(),
+                    label: None,
+                },
+                LayoutEntry {
+                    key: "Shift-a".to_owned(),
+                    symbol: "Α".to_owned(),
+                    label: None,
+                },
+            ],
+            columns: 3,
+        };
+
+        let output = render_layout_layers(&[layout], Path::new("/bin/xretype"));
+        assert_eq!(output.matches("\n      Shift-a:\n").count(), 1);
+        assert!(
+            output
+                .contains("      Shift-a:\n        - launch: [\"/bin/xretype\", \"paste\", \"Α\"]")
+        );
     }
 }
