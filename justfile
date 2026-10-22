@@ -42,6 +42,21 @@ docs-test:
 # Check and build the documentation exactly as CI expects.
 docs-check: docs-test docs-build
 
+# Generate a completion script on stdout for bash, elvish, fish, powershell, or zsh.
+completions shell="bash":
+    cargo run --quiet -- completions {{ shell }}
+
+# Verify that every supported shell produces a non-empty completion script.
+completions-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    output_root="$(mktemp -d /tmp/xretype-completions-XXXXXX)"
+    trap 'rm -r -- "$output_root"' EXIT
+    for shell in bash elvish fish powershell zsh; do
+        cargo run --quiet -- completions "$shell" > "$output_root/$shell"
+        test -s "$output_root/$shell"
+    done
+
 # Serve the documentation locally with live reload.
 docs-serve host="127.0.0.1" port="3000":
     mdbook serve --hostname "{{ host }}" --port "{{ port }}"
@@ -75,7 +90,7 @@ examples-check:
     fi
 
 # Run every local verification used before merging.
-check: format-check test lint docs-check examples-check
+check: format-check test lint docs-check examples-check completions-check
 
 # Run xretype from the working tree, forwarding arguments after `--`.
 run *args:

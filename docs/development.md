@@ -15,8 +15,9 @@ The recipes are grouped by intent:
 
 - Development: `build`, `build-release`, `format`, `format-check`, `test`,
   `lint`, `run`, and the aggregate `check`.
-- Documentation: `docs-build`, `docs-test`, `docs-check`, `docs-serve`, and
-  `docs-deploy`.
+- Documentation and generated CLI support: `docs-build`, `docs-test`,
+  `docs-check`, `docs-serve`, `docs-deploy`, `completions`, and
+  `completions-check`.
 - Example and configuration verification: `examples-check`,
   `automations-check`, `xremap-preview`, `xremap-check`, and `schema`.
 - Explicit state changes: `schema-generate`, `xremap-generate`,
@@ -36,6 +37,7 @@ Run the working-tree CLI by placing its arguments after `--`:
 ```bash
 just run -- --help
 just run -- xremap generate --dry-run
+just completions fish
 ```
 
 `docs-deploy` validates the book and uses an authenticated GitHub CLI (`gh`) to
@@ -43,6 +45,35 @@ dispatch the committed `main` branch's GitHub Pages workflow; it does not
 publish uncommitted files.
 Recipes that install files, restart services, regenerate xremap configuration,
 or dispatch a workflow are intentionally named as state-changing operations.
+
+## Versioning and releases
+
+xretype follows [Semantic Versioning](https://semver.org/). While the project
+is on `0.y.z`, increment the minor version for an incompatible public CLI,
+configuration, workflow-schema, or IPC change, and increment the patch version
+for backward-compatible fixes. Backward-compatible features may ship in a
+minor release. After `1.0.0`, incompatible public changes require a major
+version increment.
+
+The workflow document version and daemon IPC protocol version are explicit
+compatibility boundaries, separate from the package version. A release may
+continue accepting an older workflow version, but must reject an incompatible
+IPC peer explicitly. Document migrations and compatibility changes in both
+`CHANGELOG.md` and the release notes.
+
+Release preparation is intentionally manual until the packaging milestone:
+
+1. Move the relevant entries from `Unreleased` in `CHANGELOG.md` into a dated
+   version section and update `Cargo.toml`.
+2. Run `just check` and verify completions for every supported shell with
+   `xretype completions SHELL`.
+3. Draft the announcement from `.github/RELEASE_TEMPLATE.md`, including any
+   configuration, workflow-schema, or IPC compatibility notes.
+4. Tag the verified commit as `vMAJOR.MINOR.PATCH`. Never move a published
+   version tag.
+
+Every release note should distinguish user-visible changes from internal
+work, name any required migration, and report the exact validation performed.
 
 ## Repository layout
 

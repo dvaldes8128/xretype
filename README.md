@@ -111,8 +111,9 @@ just --list
 Common flows are:
 
 ```bash
-just check          # formatting, tests, lint, docs, and isolated examples
+just check          # formatting, tests, lint, docs, examples, and completions
 just docs-serve     # local documentation with live reload
+just completions zsh # print a shell completion script
 just install        # binaries, starter files, and the systemd user service
 just deploy-local   # verify, reinstall, restart, and inspect the daemon
 just docs-deploy    # validate docs and trigger the Pages workflow for main

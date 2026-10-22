@@ -200,6 +200,37 @@ Checks that need a daemon response — version match and last reload error — a
 skipped when the daemon cannot be reached, rather than guessing. Reported
 details never include resolved action text or parameter values.
 
+## Shell completions
+
+Generate a completion script without loading the xretype configuration or
+contacting the daemon:
+
+```bash
+xretype completions bash
+xretype completions elvish
+xretype completions fish
+xretype completions powershell
+xretype completions zsh
+```
+
+The script is written to standard output so it can be evaluated for the
+current session or installed in the location used by the shell. For example:
+
+```bash
+# Bash, current session
+source <(xretype completions bash)
+
+# Zsh, current user
+mkdir -p ~/.local/share/zsh/site-functions
+xretype completions zsh > ~/.local/share/zsh/site-functions/_xretype
+
+# Fish, current user
+xretype completions fish > ~/.config/fish/completions/xretype.fish
+```
+
+The equivalent project recipe is `just completions SHELL`; it defaults to
+`bash`.
+
 ## xremap generation
 
 ```bash

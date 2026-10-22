@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap_complete::Shell;
 
 use crate::sources::ValueSource;
 
@@ -49,6 +50,8 @@ pub enum Command {
     Schema(SchemaArgs),
     /// Inspect the local environment and report what is working.
     Doctor,
+    /// Generate a shell completion script on standard output.
+    Completions(CompletionsArgs),
     /// Inspect or reload the persistent service.
     Daemon(DaemonArgs),
     /// Generate or inspect the xremap integration.
@@ -56,6 +59,13 @@ pub enum Command {
     /// Internal native overlay renderer.
     #[command(name = "overlay-host", hide = true)]
     OverlayHost(OverlayHostArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct CompletionsArgs {
+    /// Shell whose completion script should be generated.
+    #[arg(value_enum)]
+    pub shell: Shell,
 }
 
 #[derive(Debug, Args)]
@@ -348,5 +358,12 @@ mod tests {
     fn workflow_parameters_require_name_value_pairs() {
         assert!(Cli::try_parse_from(["xretype", "run", "demo", "--param", "name=value"]).is_ok());
         assert!(Cli::try_parse_from(["xretype", "run", "demo", "--param", "broken"]).is_err());
+    }
+
+    #[test]
+    fn completions_require_a_supported_shell() {
+        assert!(Cli::try_parse_from(["xretype", "completions", "bash"]).is_ok());
+        assert!(Cli::try_parse_from(["xretype", "completions"]).is_err());
+        assert!(Cli::try_parse_from(["xretype", "completions", "unsupported"]).is_err());
     }
 }

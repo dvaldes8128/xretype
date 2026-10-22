@@ -12,7 +12,11 @@ pub mod xremap;
 
 mod schema;
 
+use std::io;
+
 use anyhow::Result;
+use clap::CommandFactory;
+use clap_complete::generate;
 
 use crate::{
     actions::{Action, Runtime},
@@ -38,6 +42,11 @@ pub fn run(cli: Cli) -> Result<()> {
     }
     if matches!(cli.command, Command::Doctor) {
         return doctor::run(cli.config.as_deref());
+    }
+    if let Command::Completions(args) = &cli.command {
+        let mut command = Cli::command();
+        generate(args.shell, &mut command, "xretype", &mut io::stdout());
+        return Ok(());
     }
 
     let config = Config::load(cli.config.as_deref())?;
@@ -214,6 +223,7 @@ fn command_to_action(command: Command) -> Result<Action> {
         | Command::Validate
         | Command::Schema(_)
         | Command::Doctor
+        | Command::Completions(_)
         | Command::Daemon(_)
         | Command::Xremap(_)
         | Command::OverlayHost(_) => {
