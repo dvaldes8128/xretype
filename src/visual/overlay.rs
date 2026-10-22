@@ -377,7 +377,7 @@ fn keyboard_card(layout: &Layout, view: OverlayView) -> GtkBox {
     card.append(&title);
     let hint_text = match view {
         OverlayView::Base => format!(
-            "{}: alternate prefix  ·  Esc: exit  ·  gold = substituted symbol",
+            "Shift: upper symbol  ·  Left Alt: underlying key  ·  {}: alternate prefix  ·  Esc: exit",
             layout.prefix
         ),
         OverlayView::Prefix => format!(

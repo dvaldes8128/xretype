@@ -112,7 +112,9 @@ An ordinary entry such as `a` applies in the base layer. An entry whose key is
 `PREFIX-target`, such as `Space-a`, applies after the prefix is armed. The same
 target may have both base and prefixed output. `Space-Space` is reserved: the
 generated prefix layer uses it to return to the base layer and insert a literal
-space.
+space. A prefixed entry also becomes the shifted symbol for its target, so
+`Space-a` can be selected directly with `Shift-a` while `Space-a` remains as a
+compatible alias.
 
 Write the two characters `\\n` in a symbol to request an injected newline. The
 generator converts that escape for the launch argument, and the overlay renders
@@ -121,10 +123,11 @@ it as `↵`.
 The generator also emits:
 
 - Esc mappings that leave the layout and hide its overlay
-- Alt passthrough for base-layer entries
-- Shift passthrough for base-layer entries, unless an explicit `Shift-key`
-  entry defines a shifted symbol
-- Alt/Ctrl/Shift/Super passthrough for the prefix key
+- exact modifier matching, so unrelated modified combinations pass through
+- direct `Shift-target` access to prefixed symbols
+- left-Alt transparency for occupied keys: `Alt_L-a` emits `a`, and
+  `Alt_L-Shift-a` emits `Shift-a`, whether or not a shifted symbol exists;
+  right Alt/AltGr remains untouched
 - overlay transitions between base and prefix views
 - a paste action that returns the overlay to base after a prefixed symbol
 

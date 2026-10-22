@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet, VecDeque},
+    collections::{BTreeMap, VecDeque},
     env, fs,
     io::Write,
     os::unix::fs::PermissionsExt,
@@ -150,11 +150,11 @@ fn render_layout_menu(layouts: &[Layout], executable: &Path) -> String {
 fn render_layout_layers(layouts: &[Layout], executable: &Path) -> String {
     let mut blocks = Vec::new();
     for layout in layouts {
-        let entry_keys = layout
+        let base_entries = layout
             .entries
             .iter()
-            .map(|entry| entry.key.as_str())
-            .collect::<BTreeSet<_>>();
+            .filter(|entry| layout.prefix_target(&entry.key).is_none())
+            .collect::<Vec<_>>();
         let prefix_entries = layout
             .entries
             .iter()
@@ -164,6 +164,7 @@ fn render_layout_layers(layouts: &[Layout], executable: &Path) -> String {
             String::new(),
             format!("  - name: Layout - {}", layout.name),
             format!("    mode: {}", layout.mode),
+            "    exact_match: true".to_owned(),
             "    remap:".to_owned(),
             "      Esc:".to_owned(),
             "        - set_mode: default".to_owned(),
@@ -177,10 +178,6 @@ fn render_layout_layers(layouts: &[Layout], executable: &Path) -> String {
             ),
         ]);
         if !prefix_entries.is_empty() {
-            for modifier in ["Alt", "Ctrl", "Shift", "Super"] {
-                let chord = format!("{modifier}-{}", layout.prefix);
-                blocks.extend([format!("      {chord}:"), format!("        - {chord}")]);
-            }
             blocks.extend([
                 format!("      {}:", yaml_key(&layout.prefix)),
                 format!("        - set_mode: {}", prefix_mode(layout)),
@@ -189,24 +186,37 @@ fn render_layout_layers(layouts: &[Layout], executable: &Path) -> String {
                     overlay_show_argv(executable, &layout.id, "prefix")
                 ),
             ]);
-        }
-        for entry in layout
-            .entries
-            .iter()
-            .filter(|entry| layout.prefix_target(&entry.key).is_none())
-        {
-            let symbol = entry.symbol.replace("\\n", "\n");
-            let alt_key = alt_passthrough_key(&entry.key);
-            let alt_value = alt_passthrough_value(&entry.key);
-            blocks.extend([
-                format!("      {}:", yaml_key(&alt_key)),
-                format!("        - {}", yaml_key(&alt_value)),
-            ]);
-            let shift_key = shift_passthrough_key(&entry.key);
-            if shift_key != entry.key && !entry_keys.contains(shift_key.as_str()) {
+            for (key, entry) in &prefix_entries {
+                let shifted_key = shifted_key(key);
+                if base_entries.iter().any(|entry| entry.key == shifted_key) {
+                    continue;
+                }
+                let symbol = entry.symbol.replace("\\n", "\n");
                 blocks.extend([
-                    format!("      {}:", yaml_key(&shift_key)),
-                    format!("        - {}", yaml_key(&entry.key)),
+                    format!("      {}:", yaml_key(&shifted_key)),
+                    format!(
+                        "        - launch: {}",
+                        json_argv(&[path_string(executable), "paste".to_owned(), symbol,])
+                    ),
+                ]);
+            }
+        }
+        for entry in &base_entries {
+            let symbol = entry.symbol.replace("\\n", "\n");
+            let transparent_key = left_alt_passthrough_key(&entry.key);
+            let transparent_value = left_alt_passthrough_value(&transparent_key);
+            blocks.extend([
+                format!("      {}:", yaml_key(&transparent_key)),
+                format!("        - {}", yaml_key(&transparent_value)),
+            ]);
+            let shifted_key = shifted_key(&entry.key);
+            if shifted_key != entry.key
+                && !base_entries.iter().any(|entry| entry.key == shifted_key)
+            {
+                let transparent_shifted_key = left_alt_passthrough_key(&shifted_key);
+                blocks.extend([
+                    format!("      {}:", yaml_key(&transparent_shifted_key)),
+                    format!("        - {}", yaml_key(&shifted_key)),
                 ]);
             }
             blocks.extend([
@@ -225,6 +235,7 @@ fn render_layout_layers(layouts: &[Layout], executable: &Path) -> String {
                     layout.name, layout.prefix
                 ),
                 format!("    mode: {}", prefix_mode(layout)),
+                "    exact_match: true".to_owned(),
                 "    remap:".to_owned(),
                 "      Esc:".to_owned(),
                 format!("        - set_mode: {}", layout.mode),
@@ -595,28 +606,24 @@ fn yaml_key(value: &str) -> String {
     }
 }
 
-fn alt_passthrough_key(key: &str) -> String {
-    if key.starts_with("Alt-") || key.starts_with("M-") || key.starts_with("Mod1-") {
-        key.to_owned()
-    } else {
-        format!("Alt-{key}")
-    }
-}
-
-fn alt_passthrough_value(key: &str) -> String {
-    ["Alt-", "M-", "Mod1-"]
-        .iter()
-        .find_map(|prefix| key.strip_prefix(prefix))
-        .unwrap_or(key)
-        .to_owned()
-}
-
-fn shift_passthrough_key(key: &str) -> String {
+fn shifted_key(key: &str) -> String {
     if key.starts_with("Shift-") {
         key.to_owned()
     } else {
         format!("Shift-{key}")
     }
+}
+
+fn left_alt_passthrough_key(key: &str) -> String {
+    if key.starts_with("Alt_L-") {
+        key.to_owned()
+    } else {
+        format!("Alt_L-{key}")
+    }
+}
+
+fn left_alt_passthrough_value(key: &str) -> String {
+    key.strip_prefix("Alt_L-").unwrap_or(key).to_owned()
 }
 
 fn notify_argv(executable: &Path, title: &str, body: &str, timeout_ms: u32) -> String {
@@ -709,8 +716,8 @@ mod tests {
     use crate::xremap::{Layout, LayoutEntry};
 
     use super::{
-        alt_passthrough_key, alt_passthrough_value, render_layout_layers, replace_generated_block,
-        shift_passthrough_key, yaml_key,
+        left_alt_passthrough_key, left_alt_passthrough_value, render_layout_layers,
+        replace_generated_block, shifted_key, yaml_key,
     };
 
     #[test]
@@ -722,17 +729,17 @@ mod tests {
     }
 
     #[test]
-    fn quotes_yaml_keys_and_preserves_alt_behavior() {
+    fn quotes_yaml_keys() {
         assert_eq!(yaml_key("8"), "\"8\"");
         assert_eq!(yaml_key("Shift-a"), "Shift-a");
-        assert_eq!(alt_passthrough_key("Shift-a"), "Alt-Shift-a");
-        assert_eq!(alt_passthrough_value("Alt-Shift-a"), "Shift-a");
-        assert_eq!(shift_passthrough_key("a"), "Shift-a");
-        assert_eq!(shift_passthrough_key("Shift-a"), "Shift-a");
+        assert_eq!(shifted_key("a"), "Shift-a");
+        assert_eq!(left_alt_passthrough_key("a"), "Alt_L-a");
+        assert_eq!(left_alt_passthrough_key("Shift-a"), "Alt_L-Shift-a");
+        assert_eq!(left_alt_passthrough_value("Alt_L-Shift-a"), "Shift-a");
     }
 
     #[test]
-    fn renders_a_space_prefix_mode_and_preserves_alt_space() {
+    fn renders_exact_matching_for_base_and_prefix_modes() {
         let layout = Layout {
             path: "logic.yml".into(),
             id: "logic".to_owned(),
@@ -757,14 +764,19 @@ mod tests {
 
         let output = render_layout_layers(&[layout], Path::new("/bin/xretype"));
         assert!(output.contains("mode: logic_layer_space_prefix"));
-        assert!(output.contains("Alt-Space:\n        - Alt-Space"));
-        assert!(output.contains("Shift-a:\n        - a"));
+        assert_eq!(output.matches("    exact_match: true").count(), 2);
+        assert!(!output.contains("Alt-Space:"));
+        assert!(output.contains("Alt_L-a:\n        - a"));
+        assert!(output.contains("Alt_L-Shift-a:\n        - Shift-a"));
+        assert!(
+            output.contains("Shift-a:\n        - launch: [\"/bin/xretype\", \"paste\", \"∀\"]")
+        );
         assert!(output.contains("overlay-reset\", \"logic\", \"∀\""));
         assert!(output.contains("Space:\n        - set_mode: logic_layer"));
     }
 
     #[test]
-    fn explicit_shift_entry_overrides_shift_passthrough() {
+    fn exact_shift_entry_is_still_rendered() {
         let layout = Layout {
             path: "math.yml".into(),
             id: "math".to_owned(),
@@ -788,10 +800,35 @@ mod tests {
         };
 
         let output = render_layout_layers(&[layout], Path::new("/bin/xretype"));
+        assert!(output.contains("    exact_match: true"));
         assert_eq!(output.matches("\n      Shift-a:\n").count(), 1);
+        assert_eq!(output.matches("\n      Alt_L-Shift-a:\n").count(), 1);
         assert!(
             output
                 .contains("      Shift-a:\n        - launch: [\"/bin/xretype\", \"paste\", \"Α\"]")
         );
+    }
+
+    #[test]
+    fn left_alt_is_transparent_for_native_shifted_keys() {
+        let layout = Layout {
+            path: "math.yml".into(),
+            id: "math".to_owned(),
+            name: "Math".to_owned(),
+            selector: "M".to_owned(),
+            mode: "math_layer".to_owned(),
+            prefix: "Space".to_owned(),
+            entries: vec![LayoutEntry {
+                key: "8".to_owned(),
+                symbol: "≤".to_owned(),
+                label: None,
+            }],
+            columns: 3,
+        };
+
+        let output = render_layout_layers(&[layout], Path::new("/bin/xretype"));
+        assert!(output.contains("Alt_L-8:\n        - \"8\""));
+        assert!(output.contains("Alt_L-Shift-8:\n        - Shift-8"));
+        assert!(!output.contains("\n      Shift-8:\n"));
     }
 }
